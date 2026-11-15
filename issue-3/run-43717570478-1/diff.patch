@@ -1,0 +1,82 @@
+diff --git a/tinydb/table.py b/tinydb/table.py
+index 76470aa..74885d4 100644
+--- a/tinydb/table.py
++++ b/tinydb/table.py
+@@ -246,7 +246,12 @@ class Table:
+ 
+         return list(iter(self))
+ 
+-    def search(self, cond: QueryLike) -> list[Document]:
++    def search(
++        self,
++        cond: QueryLike,
++        *,
++        limit: Optional[int] = None
++    ) -> list[Document]:
+         """
+         Search for all documents matching a 'where' cond.
+ 
+@@ -256,24 +261,46 @@ class Table:
+         read-only, since mutating one (a key or a nested value) corrupts
+         what a later identical search returns.
+ 
++        Pass ``limit=N`` to get at most the first ``N`` matching documents
++        (in the same order as an unlimited search). The scan stops after
++        ``N`` matches and a truncated result is never cached, so a later
++        unlimited search still returns every match.
++
+         :param cond: the condition to check against
++        :param limit: maximum number of documents to return (keyword-only).
++                      ``None`` means no limit, ``0`` returns an empty list.
+         :returns: list of matching documents
++        :raises TypeError: if ``limit`` is not an integer (or is a bool)
++        :raises ValueError: if ``limit`` is negative
+         """
+ 
++        if limit is not None:
++            if isinstance(limit, bool) or not isinstance(limit, int):
++                raise TypeError('limit must be an integer or None')
++            if limit < 0:
++                raise ValueError('limit must not be negative')
++            if limit == 0:
++                return []
++
+         # First, we check the query cache to see if it has results for this
+         # query
+         cached_results = self._query_cache.get(cond)
+         if cached_results is not None:
+-            return cached_results[:]
++            return cached_results[:limit]
+ 
+         # Perform the search by applying the query to all documents.
+         # Then, only if the document matches the query, convert it
+         # to the document class and document ID class.
+-        docs = [
+-            self.document_class(doc, self.document_id_class(doc_id))
+-            for doc_id, doc in self._read_table().items()
+-            if cond(doc)
+-        ]
++        docs: list[Document] = []
++        truncated = False
++        for doc_id, doc in self._read_table().items():
++            if cond(doc):
++                docs.append(
++                    self.document_class(doc, self.document_id_class(doc_id))
++                )
++                if limit is not None and len(docs) >= limit:
++                    truncated = True
++                    break
+ 
+         # Only cache cacheable queries.
+         #
+@@ -290,8 +317,8 @@ class Table:
+         # are cacheable.
+         is_cacheable: Callable[[], bool] = getattr(cond, 'is_cacheable',
+                                                    lambda: True)
+-        if is_cacheable():
+-            # Update the query cache
++        if is_cacheable() and not truncated:
++            # Update the query cache (full results only)
+             self._query_cache[cond] = docs[:]
+ 
+         return docs

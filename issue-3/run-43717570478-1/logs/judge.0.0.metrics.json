@@ -1,0 +1,99 @@
+{
+  "label": "judge.0.0",
+  "role": "judge",
+  "ok": true,
+  "cost_usd": 0.00103,
+  "usage": {
+    "input_tokens": 2,
+    "cache_creation_input_tokens": 2394,
+    "cache_read_input_tokens": 2942,
+    "output_tokens": 1410,
+    "output_tokens_details": {
+      "thinking_tokens": 556
+    },
+    "server_tool_use": {
+      "web_search_requests": 0,
+      "web_fetch_requests": 0
+    },
+    "service_tier": "standard",
+    "cache_creation": {
+      "ephemeral_1h_input_tokens": 0,
+      "ephemeral_5m_input_tokens": 2394
+    },
+    "inference_geo": "global",
+    "iterations": [],
+    "speed": "standard",
+    "fallback_credit": null
+  },
+  "num_turns": 2,
+  "duration_s": 6.6,
+  "error": "",
+  "denials": 0,
+  "model": "claude-haiku-5-5",
+  "tool_calls": [
+    {
+      "tool": "StructuredOutput",
+      "args": {
+        "criteria": [
+          {
+            "id": "FR-SEARCH-001.AC-1",
+            "testable": true,
+            "reason": "Concrete starting state (25 documents, 15 matching), one search call with limit=10, and observable outcomes (length 10, all elements match)."
+          },
+          {
+            "id": "FR-SEARCH-001.AC-2",
+            "testable": true,
+            "reason": "Concrete state of 3 matching documents with limit=10, and the result length and membership are directly assertable."
+          },
+          {
+            "id": "FR-SEARCH-001.AC-3",
+            "testable": true,
+            "reason": "Exactly 10 matching documents with limit=10 gives a precise, assertable result length of 10."
+          },
+          {
+            "id": "FR-SEARCH-001.AC-4",
+            "testable": true,
+            "reason": "A default-table TinyDB with 15 matches, one db.search call with limit=10, and observable outcomes (length 10, no exception)."
+          },
+          {
+            "id": "FR-SEARCH-001.AC-5",
+            "testable": true,
+            "reason": "The cached state is produced by a concrete prior unlimited search, and the limited search result length of 10 is directly assertable."
+          },
+          {
+            "id": "FR-SEARCH-002.AC-1",
+            "testable": true,
+            "reason": "Given a fixed insertion order, the expected result (documents n==1 and n==3 in that order) is fully specified and comparable to the unlimited search's first two elements."
+          },
+          {
+            "id": "FR-SEARCH-002.AC-2",
+            "testable": true,
+            "reason": "Comparing doc_ids of the first 5 results of a limited search against the first 5 of an unlimited search is a precise, automatable equality check."
+          },
+          {
+            "id": "FR-SEARCH-003.AC-1",
+            "testable": true,
+            "reason": "An unlimited search over 15 matching documents has a precise expected length of 15 and an insertion-order membership check."
+          },
+          {
+            "id": "FR-SEARCH-003.AC-2",
+            "testable": true,
+            "reason": "Equality of two unlimited results and independence of the returned list (a later call's length is unaffected by mutating the earlier list) can be asserted, though the specific mutation is left to the test author."
+          },
+          {
+            "id": "FR-SEARCH-003.AC-3",
+            "testable": true,
+            "reason": "A search with no matching documents must return an empty list, a precise and assertable value."
+          },
+          {
+            "id": "FR-SEARCH-003.AC-4",
+            "testable": true,
+            "reason": "Running the existing pytest suite unchanged and checking that previously passing tests still pass is an automated, objective check."
+          }
+        ]
+      },
+      "allowed": true,
+      "reason": "final structured answer"
+    }
+  ]
+}
