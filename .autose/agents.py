@@ -1,7 +1,7 @@
 """Run one agent session with the Claude Agent SDK (ADR-001, ADR-005, ADR-006).
 
-Every call gets: a fixed tool list, a PreToolUse policy hook that decides every call,
-no settings from disk, sandboxed Bash without network, the proxy's dummy credential,
+Every call gets: a fixed tool list, a PreToolUse policy hook that decides every call (and
+wraps allowed Bash in a bubblewrap jail), no settings from disk, the proxy's dummy credential,
 turn/USD/wall-clock limits, and a JSON schema for its final answer. The transcript and
 metrics are written next to the artifacts.
 
@@ -20,7 +20,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from common import dump_json, log, run, write
+from common import dump_json, jail_prefix, log, run, write
 from policy import ROLE_TOOLS, Policy
 
 
@@ -86,10 +86,11 @@ class AgentRunner:
     async def _query(self, role, label, system, prompt, schema, policy, model, lim) -> AgentResult:
         from claude_agent_sdk import (AssistantMessage, ClaudeAgentOptions, HookMatcher, ResultMessage,
                                       TextBlock, ToolResultBlock, ToolUseBlock, UserMessage, query)
-        sandbox = None
+        # The SDK's own Bash sandbox fails on GitHub runners (its seccomp helper cannot write
+        # /proc/self/setgroups, run 43716337981). Instead the policy hook rewrites every
+        # allowed command to run under our bubblewrap jail (ADR-009, revised).
         if self.sandbox and "Bash" in ROLE_TOOLS[role]:
-            sandbox = {"enabled": True, "autoAllowBashIfSandboxed": False,
-                       "allowUnsandboxedCommands": False, "network": {"allowedDomains": []}}
+            policy.jail = jail_prefix(policy.workdir, policy.scratch)
         stderr_lines: list[str] = []
         options = ClaudeAgentOptions(
             tools=ROLE_TOOLS[role],
@@ -107,7 +108,7 @@ class AgentRunner:
             output_format={"type": "json_schema", "schema": schema},
             env={**self.agent_env, "DISABLE_TELEMETRY": "1", "DISABLE_ERROR_REPORTING": "1",
                  "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1", "DISABLE_AUTOUPDATER": "1"},
-            sandbox=sandbox,
+
             stderr=lambda line: stderr_lines.append(line),
         )
         transcript: list[dict[str, Any]] = []

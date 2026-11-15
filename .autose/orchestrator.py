@@ -324,7 +324,9 @@ class Run:
             self.impl_feedback = "Your test dispute was not accepted (dispute budget used). Fix the code."
             return self.after_impl_failure()
         if st == "blocked":
-            raise Stop("stopped", "stage 3: implementer blocked: " + self.impl_out["summary"])
+            # Agents propose, checks decide (ADR-002): a "blocked" report is still checked;
+            # only the check result moves the state machine (first seen in run 43716337981).
+            log("implementer reported blocked; running the stage-3 check anyway: " + self.impl_out["summary"][:300])
         chk = checks.check_impl(self.workdir, self.base, writable, self.test_file)
         diff = self.git("diff", self.base, "--", ".", f":(exclude){self.test_file}").stdout
         write(self.out / "diff.patch", diff)
