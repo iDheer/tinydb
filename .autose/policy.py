@@ -74,6 +74,9 @@ class Policy:
 
     # -- decision --------------------------------------------------------------------
     def decide(self, tool: str, args: dict[str, Any]) -> tuple[bool, str]:
+        if tool == "StructuredOutput":
+            # The SDK's internal tool that returns the final JSON answer (output_format).
+            return True, "final structured answer"
         if tool not in ROLE_TOOLS.get(self.role, []):
             return False, f"tool {tool} is not available to the {self.role}"
         if tool in ("Read", "Glob", "Grep"):

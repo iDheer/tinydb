@@ -63,6 +63,12 @@ def test_policy_reviewer_scratch(tmp_path):
     assert not p.decide("Bash", {"command": f"python {(work / 'evil.py').as_posix()}"})[0]
 
 
+def test_policy_allows_structured_output_for_every_role(tmp_path):
+    # Found by the first real-SDK smoke test: output_format answers via this internal tool.
+    for role in ("planner", "judge", "implementer", "tester", "reviewer"):
+        assert Policy(role, tmp_path).decide("StructuredOutput", {"version": "x"})[0]
+
+
 def test_policy_hook_output_shape(tmp_path):
     p = Policy("planner", tmp_path)
     out = asyncio.run(p.hook()({"tool_name": "Bash", "tool_input": {"command": "ls"}}, None, None))
