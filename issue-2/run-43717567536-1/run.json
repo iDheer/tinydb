@@ -1,0 +1,247 @@
+{
+  "issue": 2,
+  "run_id": "43717567536",
+  "attempt": "1",
+  "mode": "start",
+  "round": 1,
+  "variant": "baseline",
+  "status": "pr-open",
+  "reason": "",
+  "started": "2026-11-15T13:10:43.731387+00:00",
+  "finished": "2026-11-15T13:13:06.401348+00:00",
+  "run_url": "https://github.com/iDheer/tinydb/actions/runs/43717567536",
+  "branch": "autose/issue-2",
+  "base_sha": "13eca00a7cd30db0b7ff133907f86a272618d869",
+  "pr": {
+    "number": 14,
+    "state": "OPEN",
+    "url": "https://github.com/iDheer/tinydb/pull/14",
+    "head_sha": "d291903fb47554898b5027e1c86e6247b19f3461",
+    "ci": {
+      "conclusion": "success",
+      "url": "https://github.com/iDheer/tinydb/actions/runs/43717773407",
+      "id": 43717773407
+    }
+  },
+  "cost_usd": 0.223,
+  "tokens": {
+    "input_tokens": 34,
+    "output_tokens": 12489,
+    "cache_read_input_tokens": 218461,
+    "cache_creation_input_tokens": 39702
+  },
+  "counters": {
+    "spec_retry": 0,
+    "design_retry": 0,
+    "impl_attempts": 1,
+    "design_revisions": 0,
+    "tester_retries": 0,
+    "disputes": 0,
+    "ci_retries": 0
+  },
+  "stages": [
+    {
+      "stage": "spec",
+      "passed": true,
+      "reasons": [],
+      "at": "2026-11-15T13:11:23.431399+00:00",
+      "attempt": 1
+    },
+    {
+      "stage": "design",
+      "passed": true,
+      "reasons": [],
+      "at": "2026-11-15T13:11:47.554647+00:00"
+    },
+    {
+      "stage": "implement",
+      "passed": true,
+      "reasons": [],
+      "at": "2026-11-15T13:12:00.305509+00:00",
+      "attempt": 1
+    },
+    {
+      "stage": "test",
+      "passed": true,
+      "reasons": [],
+      "at": "2026-11-15T13:12:13.481622+00:00",
+      "attempt": 1
+    },
+    {
+      "stage": "release",
+      "passed": true,
+      "reasons": [
+        "PR #14 state OPEN",
+        "CI success (https://github.com/iDheer/tinydb/actions/runs/43717773407)"
+      ],
+      "at": "2026-11-15T13:13:02.141697+00:00"
+    }
+  ],
+  "agent_calls": [
+    {
+      "label": "planner-spec.0",
+      "role": "planner",
+      "ok": true,
+      "cost_usd": 0.06893,
+      "usage": {
+        "input_tokens": 8,
+        "cache_creation_input_tokens": 4545,
+        "cache_read_input_tokens": 86605,
+        "output_tokens": 4889,
+        "output_tokens_details": {
+          "thinking_tokens": 941
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 0,
+          "ephemeral_5m_input_tokens": 4545
+        },
+        "inference_geo": "global",
+        "iterations": [],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "num_turns": 7,
+      "duration_s": 33.3,
+      "error": "",
+      "denials": 0,
+      "model": "claude-sonnet-5-5"
+    },
+    {
+      "label": "judge.0.0",
+      "role": "judge",
+      "ok": true,
+      "cost_usd": 0.00121,
+      "usage": {
+        "input_tokens": 2,
+        "cache_creation_input_tokens": 5149,
+        "cache_read_input_tokens": 0,
+        "output_tokens": 1137,
+        "output_tokens_details": {
+          "thinking_tokens": 710
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 0,
+          "ephemeral_5m_input_tokens": 5149
+        },
+        "inference_geo": "global",
+        "iterations": [],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "num_turns": 2,
+      "duration_s": 5.8,
+      "error": "",
+      "denials": 0,
+      "model": "claude-haiku-5-5"
+    },
+    {
+      "label": "planner-design.r1.0.0",
+      "role": "planner",
+      "ok": true,
+      "cost_usd": 0.07632,
+      "usage": {
+        "input_tokens": 8,
+        "cache_creation_input_tokens": 15060,
+        "cache_read_input_tokens": 41134,
+        "output_tokens": 3454,
+        "output_tokens_details": {
+          "thinking_tokens": 443
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 0,
+          "ephemeral_5m_input_tokens": 15060
+        },
+        "inference_geo": "global",
+        "iterations": [],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "num_turns": 6,
+      "duration_s": 24.1,
+      "error": "",
+      "denials": 0,
+      "model": "claude-sonnet-5-5"
+    },
+    {
+      "label": "implementer.r1.0.1",
+      "role": "implementer",
+      "ok": true,
+      "cost_usd": 0.04282,
+      "usage": {
+        "input_tokens": 10,
+        "cache_creation_input_tokens": 9406,
+        "cache_read_input_tokens": 63439,
+        "output_tokens": 1294,
+        "output_tokens_details": {
+          "thinking_tokens": 0
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 0,
+          "ephemeral_5m_input_tokens": 9406
+        },
+        "inference_geo": "global",
+        "iterations": [],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "num_turns": 9,
+      "duration_s": 12.6,
+      "error": "",
+      "denials": 1,
+      "model": "claude-sonnet-5-5"
+    },
+    {
+      "label": "tester.r1.0.1",
+      "role": "tester",
+      "ok": true,
+      "cost_usd": 0.03375,
+      "usage": {
+        "input_tokens": 6,
+        "cache_creation_input_tokens": 5542,
+        "cache_read_input_tokens": 27283,
+        "output_tokens": 1715,
+        "output_tokens_details": {
+          "thinking_tokens": 0
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 0,
+          "ephemeral_5m_input_tokens": 5542
+        },
+        "inference_geo": "global",
+        "iterations": [],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "num_turns": 6,
+      "duration_s": 12.0,
+      "error": "",
+      "denials": 1,
+      "model": "claude-sonnet-5-5"
+    }
+  ]
+}

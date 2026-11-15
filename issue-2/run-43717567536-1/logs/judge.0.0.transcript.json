@@ -1,0 +1,45 @@
+[
+  {
+    "type": "tool_use",
+    "name": "StructuredOutput",
+    "input": {
+      "criteria": [
+        {
+          "id": "FR-QUERY-001.AC-1",
+          "testable": true,
+          "reason": "Concrete starting database, a single db.search call with a generator-based one_of, and an exact expected list of documents."
+        },
+        {
+          "id": "FR-QUERY-001.AC-2",
+          "testable": true,
+          "reason": "Concrete query and a fixed sequence of three direct calls with exact inputs, each with an explicit expected boolean result (all True)."
+        },
+        {
+          "id": "FR-QUERY-001.AC-3",
+          "testable": true,
+          "reason": "Concrete query and input document with an explicit expected return value of False."
+        },
+        {
+          "id": "FR-QUERY-001.AC-4",
+          "testable": true,
+          "reason": "Concrete documents and generator values, one db.search call, and an exact expected result list in original document order."
+        },
+        {
+          "id": "FR-QUERY-002.AC-1",
+          "testable": true,
+          "reason": "Concrete list-based query called on three specified documents, each with an explicit expected boolean (True, True, False)."
+        },
+        {
+          "id": "FR-QUERY-002.AC-2",
+          "testable": true,
+          "reason": "Concrete database contents and a single db.search call with an exact expected list result."
+        }
+      ]
+    }
+  },
+  {
+    "type": "tool_result",
+    "is_error": null,
+    "content": "Structured output provided successfully"
+  }
+]

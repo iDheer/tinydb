@@ -1,0 +1,36 @@
+diff --git a/tinydb/queries.py b/tinydb/queries.py
+index e106c5d..8eab0b6 100644
+--- a/tinydb/queries.py
++++ b/tinydb/queries.py
+@@ -17,7 +17,7 @@ False
+ """
+ 
+ import re
+-from collections.abc import Mapping, Callable, Sequence
++from collections.abc import Mapping, Callable, Sequence, Iterable, Iterator
+ from typing import Any, Union, Optional, Protocol
+ 
+ from .utils import freeze
+@@ -473,14 +473,21 @@ class Query(QueryInstance):
+             ('all', self._path, freeze(cond))
+         )
+ 
+-    def one_of(self, items: list[Any]) -> QueryInstance:
++    def one_of(self, items: Iterable[Any]) -> QueryInstance:
+         """
+         Check if the value is contained in a list or generator.
+ 
+         >>> Query().f1.one_of(['value 1', 'value 2'])
+ 
++        A generator (or any other one-shot iterator) is consumed once, when
++        the query is created, so the query can be used for many documents
++        and searches.
++
+         :param items: The list of items to check with
+         """
++        if isinstance(items, Iterator):
++            items = list(items)
++
+         return self._generate_test(
+             lambda value: value in items,
+             ('one_of', self._path, freeze(items))
