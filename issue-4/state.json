@@ -36,5 +36,40 @@
     }
   ],
   "round": 1,
-  "status": "pr-open"
+  "status": "handover",
+  "reviews": [
+    {
+      "round": 1,
+      "verdict": "approve",
+      "route": "none",
+      "findings": 2,
+      "cost_usd": 0.2499668,
+      "run_url": "https://github.com/iDheer/tinydb/actions/runs/43717574209",
+      "head_sha": "51dc5cebed99a849627a02b1275d990c63284456"
+    }
+  ],
+  "last_review": {
+    "round": 1,
+    "findings": [
+      {
+        "severity": "minor",
+        "category": "scope",
+        "file": "docs/usage.rst",
+        "line": 312,
+        "description": "The user docs list the built-in operations (delete, increment, decrement, add, subtract, set), but the new `append` operation is not added there, so users won't find it.",
+        "evidence": "docs/usage.rst:312-317 lists the operations without append. The diff touches only tinydb/operations.py and the test file.",
+        "suggested_fix": "Add a line such as \"- ``append(key, value)``: append ``value`` to the list in ``key`` (creates the list if missing)\" to the list in docs/usage.rst."
+      },
+      {
+        "severity": "nit",
+        "category": "tests",
+        "file": "tests/test_autose_issue_4.py",
+        "line": 1,
+        "description": "The tests don't cover the documented rule that a list value is added as a single element, or the case where one op object is reused for several updates. Also, `where` is imported but never used.",
+        "evidence": "The test file imports `where` but doesn't use it. My probe confirmed the list-value and reuse behaviour separately.",
+        "suggested_fix": "Add a test for append('tags', ['b','c']) giving ['a', ['b','c']], and remove the unused import. These tests could also live in tests/test_operations.py next to the other operations."
+      }
+    ],
+    "verdict": "approve"
+  }
 }
