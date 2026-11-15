@@ -1,0 +1,111 @@
+[
+  {
+    "type": "tool_use",
+    "name": "Grep",
+    "input": {
+      "pattern": "'fragment'",
+      "path": "/home/runner/work/tinydb/tinydb/work/tinydb/queries.py",
+      "output_mode": "content"
+    }
+  },
+  {
+    "type": "tool_result",
+    "is_error": null,
+    "content": "499:            ('fragment', freeze(document)),"
+  },
+  {
+    "type": "tool_use",
+    "name": "Write",
+    "input": {
+      "file_path": "/home/runner/work/tinydb/tinydb/work/tests/test_autose_issue_1.py",
+      "content": "from tinydb import TinyDB, Query\nfrom tinydb.storages import MemoryStorage\n\nANA = {'name': 'ana', 'home': {'city': 'Pune'}, 'work': {'city': 'Delhi'}}\nRAJ = {'name': 'raj', 'home': {'city': 'Delhi'}, 'work': {'city': 'Pune'}}\n\n\ndef _db():\n    db = TinyDB(storage=MemoryStorage)\n    db.insert(ANA)\n    db.insert(RAJ)\n    return db\n\n\ndef test_fr_qry_001_ac_1_other_field_after_cached_search():\n    db = _db()\n    User = Query()\n    db.search(User.home.fragment({'city': 'Pune'}))\n    assert db.search(User.work.fragment({'city': 'Pune'})) == [RAJ]\n\n\ndef test_fr_qry_001_ac_2_fresh_search():\n    db = _db()\n    assert db.search(Query().home.fragment({'city': 'Pune'})) == [ANA]\n\n\ndef test_fr_qry_001_ac_3_reverse_order():\n    db = _db()\n    User = Query()\n    db.search(User.work.fragment({'city': 'Pune'}))\n    assert db.search(User.home.fragment({'city': 'Pune'})) == [ANA]\n\n\ndef test_fr_qry_001_ac_4_repeated_search():\n    db = _db()\n    assert db.search(Query().home.fragment({'city': 'Pune'})) == [ANA]\n    assert db.search(Query().home.fragment({'city': 'Pune'})) == [ANA]\n\n\ndef test_fr_qry_002_equality_depends_on_path():\n    User = Query()\n    a = User.home.fragment({'city': 'Pune'})\n    assert a != User.work.fragment({'city': 'Pune'})\n    b = Query().home.fragment({'city': 'Pune'})\n    assert a == b and hash(a) == hash(b)\n"
+    }
+  },
+  {
+    "type": "tool_result",
+    "is_error": null,
+    "content": "File created successfully at: /home/runner/work/tinydb/tinydb/work/tests/test_autose_issue_1.py (file state is current in your context — no need to Read it back)"
+  },
+  {
+    "type": "tool_use",
+    "name": "Edit",
+    "input": {
+      "replace_all": false,
+      "file_path": "/home/runner/work/tinydb/tinydb/work/tinydb/queries.py",
+      "old_string": "('fragment', freeze(document)),",
+      "new_string": "('fragment', self._path, freeze(document)),"
+    }
+  },
+  {
+    "type": "tool_result",
+    "is_error": null,
+    "content": "The file /home/runner/work/tinydb/tinydb/work/tinydb/queries.py has been updated successfully."
+  },
+  {
+    "type": "tool_use",
+    "name": "Bash",
+    "input": {
+      "command": "python -m pytest -q 2>&1 | tail -5; python -m mypy tinydb 2>&1 | tail -2"
+    }
+  },
+  {
+    "type": "tool_result",
+    "is_error": true,
+    "content": "PreToolUse:Bash hook error: one plain command per call: no pipes, redirects, chaining or substitution"
+  },
+  {
+    "type": "tool_use",
+    "name": "Bash",
+    "input": {
+      "command": "python -m pytest -q"
+    }
+  },
+  {
+    "type": "tool_use",
+    "name": "Bash",
+    "input": {
+      "command": "python -m mypy tinydb"
+    }
+  },
+  {
+    "type": "tool_use",
+    "name": "Bash",
+    "input": {
+      "command": "git stash push tinydb/queries.py"
+    }
+  },
+  {
+    "type": "tool_result",
+    "is_error": false,
+    "content": "============================= test session starts ==============================\nplatform linux -- Python 3.12.16, pytest-9.2.0, pluggy-1.7.0\nrootdir: /home/runner/work/tinydb/tinydb/work\nconfigfile: pytest.ini\nplugins: cov-7.1.0, anyio-4.16.0\ncollected 233 items\n\ntests/test_autose_issue_1.py .....                                       [  2%]\ntests/test_middlewares.py .........                                      [  6%]\ntests/test_operations.py ..............                                  [ 12%]\ntests/test_queries.py ..................................                 [ 26%]\ntests/test_storages.py ..............                                    [ 32%]\ntests/test_tables.py ...............................                     [ 45%]\ntests/test_tinydb.py ................................................... [ 67%]\n...............................................................          [ 94%]\ntests/test_utils.py ............                                         [100%]\n\n================================ tests coverage ================================\n_______________ coverage: platform linux, python 3.12.16-final-0 _______________\n\nName                    Stmts   Miss Branch BrPart  Cover\n---------------------------------------------------------\ntinydb/__init__.py          5      0      0      0   100%\ntinydb/database.py         53      0     10      0   100%\ntinydb/middlewares.py      44      3     14      3    90%\ntinydb/mypy_plugin.py      26     26      2      0     0%\ntinydb/operations.py       26      0      0      0   100%\ntinydb/queries.py         130      2     30      4    96%\ntinydb/storages.py         57      0      8      0   100%\ntinydb/table.py           241      1    104      8    97%\ntinydb/utils.py            78      1     18      1    98%\ntinydb/version.py           1      0      0      0   100%\n---------------------------------------------------------\nTOTAL                     661     33    186     16    94%\n============================= 233 passed in 0.76s =============================="
+  },
+  {
+    "type": "tool_result",
+    "is_error": false,
+    "content": "Success: no issues found in 10 source files"
+  },
+  {
+    "type": "tool_result",
+    "is_error": true,
+    "content": "PreToolUse:Bash hook error: command not allowlisted for the implementer: allowed are python -m pytest/compileall/mypy, python -c, git diff/status/log, ls"
+  },
+  {
+    "type": "tool_use",
+    "name": "StructuredOutput",
+    "input": {
+      "status": "done",
+      "summary": "Query.fragment now builds its hash as ('fragment', self._path, freeze(document)), so fragment queries on different fields no longer compare equal and no longer share a cache entry in Table.search. I added tests/test_autose_issue_1.py with one test per FR-QRY-001 AC plus one for FR-QRY-002. The full suite passes (233 tests) and mypy is clean. I could not run the new tests against the old code, because the policy blocks git stash. Before the fix, AC-1, AC-3 and the FR-QRY-002 test should fail, since the old hash ignored the path. I did not confirm that by running them.",
+      "changed_files": [
+        "tinydb/queries.py",
+        "tests/test_autose_issue_1.py"
+      ],
+      "design_gap": "",
+      "disputed_tests": []
+    }
+  },
+  {
+    "type": "tool_result",
+    "is_error": null,
+    "content": "Structured output provided successfully"
+  }
+]

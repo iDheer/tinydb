@@ -1,0 +1,107 @@
+{
+  "summary": "Add the query path to the hash that Query.fragment builds, so fragment queries on different fields get different hashes. They then no longer compare equal, and Table.search no longer returns another field's cached result.",
+  "approach": "In tinydb/queries.py, Query.fragment (line ~499) builds the hash as ('fragment', freeze(document)) and leaves out self._path. Table.search uses the query as the LRUCache key, and QueryInstance.__eq__ and __hash__ both rely on _hash. So User.home.fragment(d) and User.work.fragment(d) collide: the second search gets the first one's cached result, and == returns True. The fix is one line: change the hash to ('fragment', self._path, freeze(document)), the same shape that one_of uses (('one_of', self._path, freeze(items))). self._path is a tuple of str or callables, and the other path-based methods already put it in their hashes. _generate_test already sets the hash to None when the path is not cacheable. No change to Table, the cache or the public API is needed. Q-002 defaults to fragment only, so I leave other methods alone.",
+  "alternatives": [
+    {
+      "option": "Key the Table query cache on something other than the query hash (for example the query object identity or its path)",
+      "why_not": "The bug is in the query hash, which ADR-3 says must be unique per meaning. Changing the cache would leave == broken (FR-QRY-002) and the spec puts redesigning the cache out of scope."
+    },
+    {
+      "option": "Audit and fix every path-based Query method (matches, search, test, exists, comparison operators) in the same change",
+      "why_not": "Q-002 defaults to fragment only, and the spec says other methods stay unchanged. It would enlarge the diff without a stated need."
+    },
+    {
+      "option": "Disable caching for fragment queries by setting the hash to None",
+      "why_not": "This would fix the search result, but FR-QRY-002.AC-2 expects equal fragment queries on the same path to compare equal. It would also throw away caching that is legitimately possible."
+    }
+  ],
+  "files": [
+    {
+      "path": "tinydb/queries.py",
+      "change": "modify",
+      "purpose": "Include the query path in the fragment hash.",
+      "symbols": [
+        {
+          "name": "Query.fragment",
+          "kind": "method",
+          "change": "modify",
+          "description": "Change the hash tuple passed to _generate_test from ('fragment', freeze(document)) to ('fragment', self._path, freeze(document)). The test function and allow_empty_path stay the same."
+        }
+      ]
+    }
+  ],
+  "ac_mapping": [
+    {
+      "ac_id": "FR-QRY-001.AC-1",
+      "symbols": [
+        "Query.fragment",
+        "Query._generate_test",
+        "QueryInstance.__hash__",
+        "QueryInstance.__eq__"
+      ],
+      "test_idea": "Insert ana and raj into a TinyDB on MemoryStorage. Search User.home.fragment({'city':'Pune'}), then User.work.fragment({'city':'Pune'}) on the same db. Assert the second result is exactly [raj]."
+    },
+    {
+      "ac_id": "FR-QRY-001.AC-2",
+      "symbols": [
+        "Query.fragment"
+      ],
+      "test_idea": "On a fresh db with the same data, search User.home.fragment({'city':'Pune'}) and assert the result is only ana."
+    },
+    {
+      "ac_id": "FR-QRY-001.AC-3",
+      "symbols": [
+        "Query.fragment",
+        "Query._generate_test"
+      ],
+      "test_idea": "Search work.fragment first, then home.fragment on the same db, and assert the second result is only ana."
+    },
+    {
+      "ac_id": "FR-QRY-001.AC-4",
+      "symbols": [
+        "Query.fragment"
+      ],
+      "test_idea": "Run the home.fragment search twice on the same db with a fresh Query each time, so the second run hits the cache. Assert both results are only ana."
+    },
+    {
+      "ac_id": "FR-QRY-002.AC-1",
+      "symbols": [
+        "Query.fragment",
+        "QueryInstance.__eq__"
+      ],
+      "test_idea": "Assert (User.home.fragment({'city':'Pune'}) == User.work.fragment({'city':'Pune'})) is False. Also assert their hashes differ."
+    },
+    {
+      "ac_id": "FR-QRY-002.AC-2",
+      "symbols": [
+        "Query.fragment",
+        "QueryInstance.__eq__"
+      ],
+      "test_idea": "Assert that two separately built User.home.fragment({'city':'Pune'}) queries are equal and have equal hash(), so the cache can still hit."
+    }
+  ],
+  "constraints": [
+    {
+      "id": "C2",
+      "how_respected": "The fragment hash now holds the operation tag, the path and the frozen document, as C2 requires. It is still built through Query._generate_test, which returns None for the hash when the path is not cacheable."
+    },
+    {
+      "id": "C3",
+      "how_respected": "Table is not changed. Writes still go through _update_table and clear the cache."
+    },
+    {
+      "id": "C4",
+      "how_respected": "queries.py keeps importing only utils. No new imports."
+    },
+    {
+      "id": "C5",
+      "how_respected": "No new dependencies. The change reuses the existing freeze helper and self._path."
+    }
+  ],
+  "risks": [
+    "Spec risk: the reporter's cache diagnosis (TERM-001) was not checked against the cache. From the code it is plausible: Table.search keys the LRUCache on the query, and equal hashes give equal keys. The tester should still check AC-1 with a real search on the same db object.",
+    "FR-QRY-002 has priority UNSET and is only an assumption (Q-001, ASM-001). Including the path in the hash makes it true as a side effect. If the maintainer rejects it, nothing needs reverting.",
+    "Other path-based methods may have the same bug (Q-002). I did not audit them, as the spec defaults to fragment only. `Query.matches`, `search`, `test` and `exists` are worth a follow-up check.",
+    "self._path can hold callables from map(). Those are hashable, and map() already sets the query hash to None through is_cacheable, so this adds no new unhashable risk."
+  ]
+}

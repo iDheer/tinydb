@@ -1,0 +1,64 @@
+{
+  "label": "judge.0.0",
+  "role": "judge",
+  "ok": true,
+  "cost_usd": 0.00084,
+  "usage": {
+    "input_tokens": 2,
+    "cache_creation_input_tokens": 4960,
+    "cache_read_input_tokens": 0,
+    "output_tokens": 432,
+    "output_tokens_details": {
+      "thinking_tokens": 91
+    },
+    "server_tool_use": {
+      "web_search_requests": 0,
+      "web_fetch_requests": 0
+    },
+    "service_tier": "standard",
+    "cache_creation": {
+      "ephemeral_1h_input_tokens": 0,
+      "ephemeral_5m_input_tokens": 4960
+    },
+    "inference_geo": "global",
+    "iterations": [],
+    "speed": "standard",
+    "fallback_credit": null
+  },
+  "num_turns": 2,
+  "duration_s": 2.6,
+  "error": "",
+  "denials": 0,
+  "model": "claude-haiku-5-5",
+  "tool_calls": [
+    {
+      "tool": "StructuredOutput",
+      "args": {
+        "criteria": [
+          {
+            "id": "FR-QRY-001.AC-1",
+            "testable": true,
+            "reason": "The starting data, the prior search, and the single follow-up search are all concrete, and the expected result is an exact list containing only the 'raj' document."
+          },
+          {
+            "id": "FR-QRY-001.AC-2",
+            "testable": true,
+            "reason": "With fixed data and no prior search, one search call has an exact expected result: a list containing only the 'ana' document."
+          },
+          {
+            "id": "FR-QRY-001.AC-3",
+            "testable": true,
+            "reason": "The prior search, the same-object follow-up search, and the exact expected single-document result are all specified concretely."
+          },
+          {
+            "id": "FR-QRY-001.AC-4",
+            "testable": true,
+            "reason": "The repeated identical search on the same db object has a fixed expected result, a list containing only the 'ana' document, so a pytest assertion can check it."
+          }
+        ]
+      },
+      "allowed": true,
+      "reason": "final structured answer"
+    }
+  ]
+}

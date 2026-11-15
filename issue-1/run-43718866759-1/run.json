@@ -1,0 +1,195 @@
+{
+  "issue": 1,
+  "run_id": "43718866759",
+  "attempt": "1",
+  "mode": "start",
+  "round": 1,
+  "variant": "selftest",
+  "status": "stopped-after-test",
+  "reason": "configured to stop after stage 4 (experiment variant)",
+  "started": "2026-11-15T13:25:21.847786+00:00",
+  "finished": "2026-11-15T13:26:39.132053+00:00",
+  "run_url": "https://github.com/iDheer/tinydb/actions/runs/43718866759",
+  "branch": "autose/issue-1-selftest",
+  "base_sha": "19659f04c30cda323a33d3ec1facd95b2355e2f5",
+  "pr": {},
+  "cost_usd": 0.2314,
+  "tokens": {
+    "input_tokens": 22,
+    "output_tokens": 9988,
+    "cache_read_input_tokens": 116883,
+    "cache_creation_input_tokens": 54256
+  },
+  "counters": {
+    "spec_retry": 0,
+    "design_retry": 0,
+    "impl_attempts": 1,
+    "design_revisions": 0,
+    "tester_retries": 0,
+    "disputes": 0,
+    "ci_retries": 0
+  },
+  "stages": [
+    {
+      "stage": "spec",
+      "passed": true,
+      "reasons": [],
+      "at": "2026-11-15T13:26:03.801858+00:00",
+      "attempt": 1
+    },
+    {
+      "stage": "design",
+      "passed": true,
+      "reasons": [],
+      "at": "2026-11-15T13:26:21.284296+00:00"
+    },
+    {
+      "stage": "implement",
+      "passed": true,
+      "reasons": [],
+      "at": "2026-11-15T13:26:33.639824+00:00",
+      "attempt": 1
+    },
+    {
+      "stage": "test",
+      "passed": true,
+      "reasons": [],
+      "at": "2026-11-15T13:26:34.536668+00:00",
+      "attempt": 1
+    }
+  ],
+  "agent_calls": [
+    {
+      "label": "planner-spec.0",
+      "role": "planner",
+      "ok": true,
+      "cost_usd": 0.12439,
+      "usage": {
+        "input_tokens": 6,
+        "cache_creation_input_tokens": 26462,
+        "cache_read_input_tokens": 44172,
+        "output_tokens": 5381,
+        "output_tokens_details": {
+          "thinking_tokens": 2269
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 0,
+          "ephemeral_5m_input_tokens": 26462
+        },
+        "inference_geo": "global",
+        "iterations": [],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "num_turns": 5,
+      "duration_s": 38.9,
+      "error": "",
+      "denials": 0,
+      "model": "claude-sonnet-5-5"
+    },
+    {
+      "label": "judge.0.0",
+      "role": "judge",
+      "ok": true,
+      "cost_usd": 0.00084,
+      "usage": {
+        "input_tokens": 2,
+        "cache_creation_input_tokens": 4960,
+        "cache_read_input_tokens": 0,
+        "output_tokens": 432,
+        "output_tokens_details": {
+          "thinking_tokens": 91
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 0,
+          "ephemeral_5m_input_tokens": 4960
+        },
+        "inference_geo": "global",
+        "iterations": [],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "num_turns": 2,
+      "duration_s": 2.6,
+      "error": "",
+      "denials": 0,
+      "model": "claude-haiku-5-5"
+    },
+    {
+      "label": "planner-design.r1.0.0",
+      "role": "planner",
+      "ok": true,
+      "cost_usd": 0.0627,
+      "usage": {
+        "input_tokens": 6,
+        "cache_creation_input_tokens": 14103,
+        "cache_read_input_tokens": 25770,
+        "output_tokens": 2485,
+        "output_tokens_details": {
+          "thinking_tokens": 38
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 0,
+          "ephemeral_5m_input_tokens": 14103
+        },
+        "inference_geo": "global",
+        "iterations": [],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "num_turns": 5,
+      "duration_s": 17.5,
+      "error": "",
+      "denials": 0,
+      "model": "claude-sonnet-5-5"
+    },
+    {
+      "label": "implementer.r1.0.1",
+      "role": "implementer",
+      "ok": true,
+      "cost_usd": 0.04344,
+      "usage": {
+        "input_tokens": 8,
+        "cache_creation_input_tokens": 8731,
+        "cache_read_input_tokens": 46941,
+        "output_tokens": 1690,
+        "output_tokens_details": {
+          "thinking_tokens": 37
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 0,
+          "ephemeral_5m_input_tokens": 8731
+        },
+        "inference_geo": "global",
+        "iterations": [],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "num_turns": 9,
+      "duration_s": 12.2,
+      "error": "",
+      "denials": 2,
+      "model": "claude-sonnet-5-5"
+    }
+  ]
+}

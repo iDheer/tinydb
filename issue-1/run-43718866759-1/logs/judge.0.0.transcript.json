@@ -1,0 +1,35 @@
+[
+  {
+    "type": "tool_use",
+    "name": "StructuredOutput",
+    "input": {
+      "criteria": [
+        {
+          "id": "FR-QRY-001.AC-1",
+          "testable": true,
+          "reason": "The starting data, the prior search, and the single follow-up search are all concrete, and the expected result is an exact list containing only the 'raj' document."
+        },
+        {
+          "id": "FR-QRY-001.AC-2",
+          "testable": true,
+          "reason": "With fixed data and no prior search, one search call has an exact expected result: a list containing only the 'ana' document."
+        },
+        {
+          "id": "FR-QRY-001.AC-3",
+          "testable": true,
+          "reason": "The prior search, the same-object follow-up search, and the exact expected single-document result are all specified concretely."
+        },
+        {
+          "id": "FR-QRY-001.AC-4",
+          "testable": true,
+          "reason": "The repeated identical search on the same db object has a fixed expected result, a list containing only the 'ana' document, so a pytest assertion can check it."
+        }
+      ]
+    }
+  },
+  {
+    "type": "tool_result",
+    "is_error": null,
+    "content": "Structured output provided successfully"
+  }
+]

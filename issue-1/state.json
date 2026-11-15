@@ -1,7 +1,7 @@
 {
   "issue": 1,
-  "branch": "autose/issue-1",
-  "base_sha": "13eca00a7cd30db0b7ff133907f86a272618d869",
+  "branch": "autose/issue-1-selftest",
+  "base_sha": "19659f04c30cda323a33d3ec1facd95b2355e2f5",
   "runs": [
     {
       "run_id": "43716337981",
@@ -49,10 +49,34 @@
         "test",
         "release"
       ]
+    },
+    {
+      "run_id": "43718866759",
+      "attempt": "1",
+      "mode": "start",
+      "round": 1,
+      "variant": "selftest",
+      "status": "stopped-after-test",
+      "reason": "configured to stop after stage 4 (experiment variant)",
+      "cost_usd": 0.2314,
+      "tokens": {
+        "input_tokens": 22,
+        "output_tokens": 9988,
+        "cache_read_input_tokens": 116883,
+        "cache_creation_input_tokens": 54256
+      },
+      "run_url": "https://github.com/iDheer/tinydb/actions/runs/43718866759",
+      "dir": "issue-1/run-43718866759-1",
+      "passed_stages": [
+        "spec",
+        "design",
+        "implement",
+        "test"
+      ]
     }
   ],
   "round": 1,
-  "status": "handover",
+  "status": "stopped-after-test",
   "pr": 12,
   "head_sha": "1ff2b1830c1f6050c5fbf09cff07a91d50a3f861",
   "ci": {
