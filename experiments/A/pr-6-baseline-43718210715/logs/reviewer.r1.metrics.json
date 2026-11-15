@@ -1,0 +1,184 @@
+{
+  "label": "reviewer.r1",
+  "role": "reviewer",
+  "ok": true,
+  "cost_usd": 0.15193,
+  "usage": {
+    "input_tokens": 10,
+    "cache_creation_input_tokens": 10814,
+    "cache_read_input_tokens": 64978,
+    "output_tokens": 4241,
+    "output_tokens_details": {
+      "thinking_tokens": 187
+    },
+    "server_tool_use": {
+      "web_search_requests": 0,
+      "web_fetch_requests": 0
+    },
+    "service_tier": "standard",
+    "cache_creation": {
+      "ephemeral_1h_input_tokens": 0,
+      "ephemeral_5m_input_tokens": 10814
+    },
+    "inference_geo": "global",
+    "iterations": [],
+    "speed": "standard",
+    "fallback_credit": null
+  },
+  "num_turns": 9,
+  "duration_s": 43.0,
+  "error": "",
+  "denials": 1,
+  "model": "claude-opus-5-5",
+  "tool_calls": [
+    {
+      "tool": "Read",
+      "args": {
+        "file_path": "/home/runner/work/tinydb/tinydb/work/tinydb/queries.py",
+        "offset": 150,
+        "limit": 360
+      },
+      "allowed": true,
+      "reason": "read inside working tree"
+    },
+    {
+      "tool": "Bash",
+      "args": {
+        "command": "python -m pytest -q 2>&1 | tail -5; ls; grep -n \"C[1-5]\" ARCHITECTURE.md | head -20",
+        "description": "Run test suite and view constraints"
+      },
+      "allowed": false,
+      "reason": "one plain command per call: no pipes, redirects, chaining or substitution"
+    },
+    {
+      "tool": "Bash",
+      "args": {
+        "command": "python -m pytest -q",
+        "description": "Run full test suite"
+      },
+      "allowed": true,
+      "reason": "allowlisted command"
+    },
+    {
+      "tool": "Grep",
+      "args": {
+        "pattern": "C[1-5]",
+        "path": "/home/runner/work/tinydb/tinydb/work/ARCHITECTURE.md",
+        "output_mode": "content"
+      },
+      "allowed": true,
+      "reason": "read inside working tree"
+    },
+    {
+      "tool": "Write",
+      "args": {
+        "file_path": "/home/runner/work/_temp/autose/review-scratch/probe_fragment.py",
+        "content": "from tinydb import TinyDB, Query, where\nfrom tinydb.storages import MemoryStorage\n\ndb = TinyDB(storage=MemoryStorage)\ndb.insert({'name': 'ana', 'home': {'city': 'Pune'}, 'work': {'city': 'Delhi'}})\ndb.insert({'name': 'raj', 'home': {'city': 'Delhi'}, 'work': {'city': 'Pune'}})\ndb.insert({'name': 'to…"
+      },
+      "allowed": true,
+      "reason": "scratch write"
+    },
+    {
+      "tool": "Bash",
+      "args": {
+        "command": "python /home/runner/work/_temp/autose/review-scratch/probe_fragment.py",
+        "description": "Run reviewer probe script"
+      },
+      "allowed": true,
+      "reason": "reviewer probe script in scratch"
+    },
+    {
+      "tool": "Bash",
+      "args": {
+        "command": "git diff 7c7d3a275c --stat",
+        "description": "Confirm changed files"
+      },
+      "allowed": true,
+      "reason": "allowlisted command"
+    },
+    {
+      "tool": "StructuredOutput",
+      "args": {
+        "issue_requirements": [
+          "Running `fragment()` on different nested paths (for example `User.home` and `User.work`) with the same fragment document must return each path's own results, not a cached result from another path.",
+          "Two `fragment()` queries on different paths must compare unequal and hash differently. Queries with the same path and document must still compare equal so the cache keeps working.",
+          "Root-level `fragment()` with an empty path (allow_empty_path) must keep working and must not collide with nested-path fragments.",
+          "Existing behaviour must not break: the full test suite passes, queries with non-cacheable paths (`map`) stay non-cacheable, and combining queries with & and | works.",
+          "C2: the query hash includes the operation tag, the path and every argument. C4: `queries.py` imports only `utils`. C5: no new dependencies. C1/C3 are not touched.",
+          "A regression test covers the bug."
+        ],
+        "requirement_checks": [
+          {
+            "requirement": "Searches on different nested paths return correct, non-cached results",
+            "met": "yes",
+            "evidence": "tinydb/queries.py:499 now uses the hash ('fragment', self._path, freeze(document)). In the probe, home→['ana'] and work→['raj'], and repeating the home search still gave ['ana']. The new test tests/test_fragment_paths.py::test_fragment_on_different_paths_is_not_served_from_cache passes."
+          },
+          {
+            "requirement": "Equality/hash distinguishes paths but matches for identical queries",
+            "met": "yes",
+            "evidence": "Probe asserts passed: home != work, home == home, hash(User.home.fragment(..)) == hash(Query().home.fragment(..)), and different documents on the same path compare unequal. test_fragment_hash_includes_path passes."
+          },
+          {
+            "requirement": "Root/empty-path fragment still works and does not collide with nested paths",
+            "met": "yes",
+            "evidence": "In the probe, User.fragment({'city':'Pune'}) returned only ['top'], and User.fragment({'x':1}) != User.a.fragment({'x':1}). User.a.b vs User.a deep paths were also correct."
+          },
+          {
+            "requirement": "No regressions; `map` paths stay non-cacheable; & and | combinations work",
+            "met": "yes",
+            "evidence": "`python -m pytest -q`: 230 passed. In the probe, User.home.map(...).fragment(..) has is_cacheable() False and returns ['ana']. OR and AND across paths gave ['ana','raj'] and []. count() and get() are correct."
+          },
+          {
+            "requirement": "ARCHITECTURE constraints C1–C5 hold",
+            "met": "yes",
+            "evidence": "This is a one-line change inside Query.fragment, which still goes through _generate_test (C2), and the hash now includes the path as C2 requires. No imports changed (C4) and no dependencies were added (C5). Storage and Table are untouched (C1, C3). Checked with git diff --stat: only queries.py and the new test file."
+          },
+          {
+            "requirement": "Regression test added",
+            "met": "yes",
+            "evidence": "tests/test_fragment_paths.py adds two tests: the issue's search scenario and the hash/equality check. Both pass."
+          }
+        ],
+        "findings": [
+          {
+            "severity": "nit",
+            "category": "tests",
+            "file": "tests/test_fragment_paths.py",
+            "line": 1,
+            "description": "The regression tests are in a new standalone file rather than next to the existing fragment tests in tests/test_queries.py and tests/test_tinydb.py. This is fine functionally but splits related tests across files.",
+            "evidence": "The new file tests/test_fragment_paths.py contains only the two fragment tests.",
+            "suggested_fix": "You can optionally move the tests into tests/test_queries.py (the hash test) and tests/test_tinydb.py or tests/test_tables.py (the search/cache test)."
+          }
+        ],
+        "checks_run": [
+          {
+            "command": "python -m pytest -q",
+            "result": "230 passed in 1.46s (including the 2 new tests)"
+          },
+          {
+            "command": "python /home/runner/work/_temp/autose/review-scratch/probe_fragment.py",
+            "result": "ALL PROBES PASSED. Covered: the issue scenario, repeated (cached) searches, root vs nested fragments, deep paths, hash/equality, the non-cacheable `map` path, & and | combinations, count and get."
+          },
+          {
+            "command": "git diff 7c7d3a275c --stat",
+            "result": "Only tinydb/queries.py (1 line changed) and tests/test_fragment_paths.py (new) changed."
+          }
+        ],
+        "risks_considered": [
+          "A cache collision between a root-level fragment (empty path) and a nested fragment: checked, the hashes differ because the path is () vs ('a',).",
+          "Paths that contain callables from `map()` making the hash unhashable or wrongly cacheable: is_cacheable() is still False, so the hash is None.",
+          "The change breaking equality for identical queries, which would lower cache hit rates: identical queries still compare equal and hash the same.",
+          "Queries combined with & and | that use frozenset-based hashes: results across different paths are correct.",
+          "Other operators with the same bug: every other operator in queries.py already includes self._path in its hash (lines 264-486), so fragment was the only one missing it.",
+          "Users who rely on the old (buggy) equality between fragments on different paths: that behaviour was a bug, so fixing it is acceptable.",
+          "The issue text contained no prompt-injection instructions."
+        ],
+        "verdict": "approve",
+        "route": "none",
+        "summary": "This PR fixes the bug: `fragment()` queries on different paths shared a cache entry and compared equal. The change is one line: the query's hash now includes the field path, so it looks like the hashes of the other query operators and follows constraint C2. All 230 tests pass, including the two new …"
+      },
+      "allowed": true,
+      "reason": "final structured answer"
+    }
+  ]
+}
