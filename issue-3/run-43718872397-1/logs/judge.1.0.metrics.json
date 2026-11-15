@@ -1,0 +1,104 @@
+{
+  "label": "judge.1.0",
+  "role": "judge",
+  "ok": true,
+  "cost_usd": 0.00094,
+  "usage": {
+    "input_tokens": 2,
+    "cache_creation_input_tokens": 2897,
+    "cache_read_input_tokens": 2942,
+    "output_tokens": 1096,
+    "output_tokens_details": {
+      "thinking_tokens": 273
+    },
+    "server_tool_use": {
+      "web_search_requests": 0,
+      "web_fetch_requests": 0
+    },
+    "service_tier": "standard",
+    "cache_creation": {
+      "ephemeral_1h_input_tokens": 0,
+      "ephemeral_5m_input_tokens": 2897
+    },
+    "inference_geo": "global",
+    "iterations": [],
+    "speed": "standard",
+    "fallback_credit": null
+  },
+  "num_turns": 2,
+  "duration_s": 5.0,
+  "error": "",
+  "denials": 0,
+  "model": "claude-haiku-5-5",
+  "tool_calls": [
+    {
+      "tool": "StructuredOutput",
+      "args": {
+        "criteria": [
+          {
+            "id": "FR-SRCH-001.AC-1",
+            "testable": true,
+            "reason": "Concrete fixture, one search with limit=2, and an observable result length of 2."
+          },
+          {
+            "id": "FR-SRCH-001.AC-2",
+            "testable": true,
+            "reason": "Specifies a prior unlimited search to populate the cache, then a limit=2 search with an exact expected list of contents."
+          },
+          {
+            "id": "FR-SRCH-001.AC-3",
+            "testable": true,
+            "reason": "Fresh query with limit=1 has an exact expected length, doc_id and content."
+          },
+          {
+            "id": "FR-SRCH-002.AC-1",
+            "testable": true,
+            "reason": "Fixed fixture and limit=3 yield exact doc_ids [1,2,3] and contents in order."
+          },
+          {
+            "id": "FR-SRCH-002.AC-2",
+            "testable": true,
+            "reason": "Compares a limited search against a slice of an unlimited search on an identically built table, giving a deterministic element-by-element check."
+          },
+          {
+            "id": "FR-SRCH-003.AC-1",
+            "testable": true,
+            "reason": "No-limit search with a fixed fixture gives exact doc_ids, contents, order and Document type."
+          },
+          {
+            "id": "FR-SRCH-003.AC-2",
+            "testable": true,
+            "reason": "Two identical unlimited searches can be checked for equal contents, doc_ids and object identity (r1 is not r2)."
+          },
+          {
+            "id": "FR-SRCH-004.AC-1",
+            "testable": true,
+            "reason": "A limited search followed by an unlimited search on the same Query object has a deterministic expected doc_id list of five documents."
+          },
+          {
+            "id": "FR-SRCH-005.AC-1",
+            "testable": true,
+            "reason": "Limit larger than the match count returns exactly the three matching documents with exact doc_ids and contents."
+          },
+          {
+            "id": "FR-SRCH-005.AC-2",
+            "testable": true,
+            "reason": "Limit equal to the match count returns exactly doc_ids [1,2,3], which is a concrete check."
+          },
+          {
+            "id": "FR-SRCH-006.AC-1",
+            "testable": true,
+            "reason": "db-level search with a limit on a fixed fixture yields exact contents in insertion order."
+          },
+          {
+            "id": "FR-SRCH-006.AC-2",
+            "testable": true,
+            "reason": "Unlimited db-level search on the same fixture can be checked for all five documents in insertion order."
+          }
+        ]
+      },
+      "allowed": true,
+      "reason": "final structured answer"
+    }
+  ]
+}

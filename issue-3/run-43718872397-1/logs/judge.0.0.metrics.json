@@ -1,0 +1,94 @@
+{
+  "label": "judge.0.0",
+  "role": "judge",
+  "ok": true,
+  "cost_usd": 0.00087,
+  "usage": {
+    "input_tokens": 2,
+    "cache_creation_input_tokens": 2359,
+    "cache_read_input_tokens": 2942,
+    "output_tokens": 1084,
+    "output_tokens_details": {
+      "thinking_tokens": 281
+    },
+    "server_tool_use": {
+      "web_search_requests": 0,
+      "web_fetch_requests": 0
+    },
+    "service_tier": "standard",
+    "cache_creation": {
+      "ephemeral_1h_input_tokens": 0,
+      "ephemeral_5m_input_tokens": 2359
+    },
+    "inference_geo": "global",
+    "iterations": [],
+    "speed": "standard",
+    "fallback_credit": null
+  },
+  "num_turns": 2,
+  "duration_s": 5.0,
+  "error": "",
+  "denials": 0,
+  "model": "claude-haiku-5-5",
+  "tool_calls": [
+    {
+      "tool": "StructuredOutput",
+      "args": {
+        "criteria": [
+          {
+            "id": "FR-SRCH-001.AC-1",
+            "testable": true,
+            "reason": "Concrete table contents, a single search call with limit=2, and observable outcomes (list length 2, each document's level is 'error')."
+          },
+          {
+            "id": "FR-SRCH-001.AC-2",
+            "testable": true,
+            "reason": "Concrete table with 3 matches and limit=10; the result must contain all 3 matching documents, which is directly checkable."
+          },
+          {
+            "id": "FR-SRCH-001.AC-3",
+            "testable": true,
+            "reason": "Concrete default-table setup with 5 matches and db.search(..., limit=2); the result length of exactly 2 is an unambiguous check."
+          },
+          {
+            "id": "FR-SRCH-002.AC-1",
+            "testable": true,
+            "reason": "Specified insertion order and a single call; equality of table.search(q, limit=3) with table.search(q)[:3] (documents, order, doc_ids) is an exact comparison."
+          },
+          {
+            "id": "FR-SRCH-002.AC-2",
+            "testable": true,
+            "reason": "Interleaved matches and non-matches are fully specified, and the expected result (n=0 and n=2 in that order) is exact."
+          },
+          {
+            "id": "FR-SRCH-003.AC-1",
+            "testable": true,
+            "reason": "A call with no limit argument on a 5-match table; the expected result (all 5 in table order) is exact."
+          },
+          {
+            "id": "FR-SRCH-003.AC-2",
+            "testable": false,
+            "reason": "'Existing calls' is not a concrete starting state; the test cannot know which calls or prior results to compare against, so 'results are unchanged' has no defined baseline."
+          },
+          {
+            "id": "FR-SRCH-004.AC-1",
+            "testable": true,
+            "reason": "Fixed sequence of a limited search followed by an unlimited search on the same query; the expected result (all 5 documents) is explicit."
+          },
+          {
+            "id": "FR-SRCH-004.AC-2",
+            "testable": true,
+            "reason": "Unlimited search followed by limit=2 search; the expected result (exactly 2 documents equal to the first 2 of the earlier result) is precisely checkable."
+          },
+          {
+            "id": "FR-SRCH-004.AC-3",
+            "testable": true,
+            "reason": "Two identical limited calls on the same table; asserting both return the same 2 documents is a clear equality check."
+          }
+        ]
+      },
+      "allowed": true,
+      "reason": "final structured answer"
+    }
+  ]
+}
