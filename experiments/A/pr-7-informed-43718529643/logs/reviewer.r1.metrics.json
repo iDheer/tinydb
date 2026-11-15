@@ -1,0 +1,205 @@
+{
+  "label": "reviewer.r1",
+  "role": "reviewer",
+  "ok": true,
+  "cost_usd": 0.15878,
+  "usage": {
+    "input_tokens": 8,
+    "cache_creation_input_tokens": 11145,
+    "cache_read_input_tokens": 54226,
+    "output_tokens": 4609,
+    "output_tokens_details": {
+      "thinking_tokens": 222
+    },
+    "server_tool_use": {
+      "web_search_requests": 0,
+      "web_fetch_requests": 0
+    },
+    "service_tier": "standard",
+    "cache_creation": {
+      "ephemeral_1h_input_tokens": 0,
+      "ephemeral_5m_input_tokens": 11145
+    },
+    "inference_geo": "global",
+    "iterations": [],
+    "speed": "standard",
+    "fallback_credit": null
+  },
+  "num_turns": 8,
+  "duration_s": 46.0,
+  "error": "",
+  "denials": 1,
+  "model": "claude-opus-5-5",
+  "tool_calls": [
+    {
+      "tool": "Bash",
+      "args": {
+        "command": "sed -n 460,495p tinydb/queries.py && grep -n \"def freeze\" -A20 tinydb/utils.py && python -m pytest -q 2>&1 | tail -3",
+        "description": "Show changed code, freeze helper, run test suite"
+      },
+      "allowed": false,
+      "reason": "one plain command per call: no pipes, redirects, chaining or substitution"
+    },
+    {
+      "tool": "Read",
+      "args": {
+        "file_path": "/home/runner/work/tinydb/tinydb/work/tinydb/queries.py",
+        "offset": 470,
+        "limit": 25
+      },
+      "allowed": true,
+      "reason": "read inside working tree"
+    },
+    {
+      "tool": "Grep",
+      "args": {
+        "pattern": "def freeze",
+        "path": "/home/runner/work/tinydb/tinydb/work/tinydb/utils.py",
+        "output_mode": "content",
+        "-A": 18
+      },
+      "allowed": true,
+      "reason": "read inside working tree"
+    },
+    {
+      "tool": "Bash",
+      "args": {
+        "command": "python -m pytest -q",
+        "description": "Run full test suite"
+      },
+      "allowed": true,
+      "reason": "allowlisted command"
+    },
+    {
+      "tool": "Write",
+      "args": {
+        "file_path": "/home/runner/work/_temp/autose/review-scratch/probe_one_of.py",
+        "content": "from tinydb import TinyDB, Query\nfrom tinydb.storages import MemoryStorage\n\nresults = {}\n\ndb = TinyDB(storage=MemoryStorage)\ndb.insert_multiple([{'tag': 'a'}, {'tag': 'b'}, {'tag': 'a'}, {'tag': 'c'}])\nresults['AC-1 issue example'] = db.search(Query().tag.one_of(t for t in ['a', 'b']))\n\nq = Query().…"
+      },
+      "allowed": true,
+      "reason": "scratch write"
+    },
+    {
+      "tool": "Bash",
+      "args": {
+        "command": "python /home/runner/work/_temp/autose/review-scratch/probe_one_of.py",
+        "description": "Run probe for one_of generator behaviour"
+      },
+      "allowed": true,
+      "reason": "reviewer probe script in scratch"
+    },
+    {
+      "tool": "StructuredOutput",
+      "args": {
+        "issue_requirements": [
+          "R1: Query.one_of given a generator must match every document whose value is among the generated values, regardless of how many documents were tested before (issue example must return [a, b, a]).",
+          "R2: Calling a generator-built one_of query directly several times must keep returning correct results (True for allowed values, False otherwise).",
+          "R3: Which documents match must not depend on the order of the generated values.",
+          "R4: one_of with a list (and other non-iterator containers) keeps behaving exactly as before.",
+          "R5 (implied): reusing the same generator-built query object across searches gives the same results; query hash/equality (C2, ADR-3) reflects the allowed values, not the generator's identity.",
+          "R6 (implied): an empty generator matches nothing.",
+          "R7 (implied): the existing test suite still passes, ARCHITECTURE.md constraints C1-C5 hold, and tests cover the multi-document case from the issue."
+        ],
+        "requirement_checks": [
+          {
+            "requirement": "R1: generator matches every allowed document (issue example)",
+            "met": "no",
+            "evidence": "Probe: db.search(Query().tag.one_of(t for t in ['a','b'])) on [a,b,a,c] returns [{'tag': 'a'}]. The expected result is [a,b,a], and this is worse than the original bug, which returned [a,b]. tinydb/queries.py:487 calls list(items) on every test call, so the first call uses up the generator and every later call sees []."
+          },
+          {
+            "requirement": "R2: repeated direct calls give correct results",
+            "met": "no",
+            "evidence": "Probe AC-2: calls on value 1, value 2, value 1 return [True, False, False]. Expected [True, True, True]."
+          },
+          {
+            "requirement": "R3: order of generated values does not matter",
+            "met": "no",
+            "evidence": "Probe AC-4: docs [b,a,a] with a generator yielding a, b return [{'tag': 'b'}]. Expected all three."
+          },
+          {
+            "requirement": "R4: list behaviour unchanged",
+            "met": "yes",
+            "evidence": "Probe: the list query returns [a,b,a]. tests/test_one_of_generator.py::test_one_of_with_list_unchanged and tests/test_queries.py pass (230 passed). Lists are now copied on every call, which costs performance but does not change behaviour."
+          },
+          {
+            "requirement": "R5: reuse across searches is stable; hash reflects the values",
+            "met": "no",
+            "evidence": "Probe reuse: the first search gives [{'tag':'a'}] and the second gives []. freeze(items) at queries.py:488 still receives the generator object, so the hash uses its identity: two generators with the same contents compare unequal (probe: equal for same-content generators => False)."
+          },
+          {
+            "requirement": "R6: empty generator matches nothing",
+            "met": "partly",
+            "evidence": "With the PR code, list(empty_gen) == [] so nothing matches. This holds only by accident: an exhausted non-empty generator also matches nothing."
+          },
+          {
+            "requirement": "R7: suite passes, constraints hold, tests cover the issue scenario",
+            "met": "partly",
+            "evidence": "python -m pytest -q: 230 passed. The new test only checks one call on {'tag':'b'} (the first call, before the generator is used up), so it passes while the bug got worse. There is no multi-document or db.search test. C2 is weakened because the hash is still keyed on the generator's identity."
+          }
+        ],
+        "findings": [
+          {
+            "severity": "blocker",
+            "category": "code",
+            "file": "tinydb/queries.py",
+            "line": 487,
+            "description": "`lambda value: value in list(items)` runs list() on the generator on every test call. The first call uses up the generator; every later call builds an empty list and returns False. The bug gets worse: the issue example now returns only the first matching document instead of the first two. The design said to materialise once at construction (`if isinstance(items, Iterator): items = list(items)` before building the closure and hash), and the code does not do that.",
+            "evidence": "Probe /home/runner/work/_temp/autose/review-scratch/probe_one_of.py: issue example => [{'tag': 'a'}]; direct calls => [True, False, False]; AC-4 => [{'tag': 'b'}]; reuse => ([{'tag': 'a'}], [])",
+            "suggested_fix": "Materialise once before building the test, for example `if isinstance(items, Iterator): items = list(items)` at the top of one_of. Then keep `lambda value: value in items` and `freeze(items)` so the closure and the hash both use the materialised list."
+          },
+          {
+            "severity": "major",
+            "category": "code",
+            "file": "tinydb/queries.py",
+            "line": 488,
+            "description": "The hash/equality tuple still freezes the raw generator object. The query's identity therefore depends on the generator object rather than on the allowed values, which goes against C2/ADR-3: same-content generator queries compare unequal, and the hash does not describe the actual filter.",
+            "evidence": "Probe: `Query().tag.one_of(t for t in ['a']) == Query().tag.one_of(t for t in ['a'])` => False",
+            "suggested_fix": "Freeze the materialised list (this follows from the fix above)."
+          },
+          {
+            "severity": "major",
+            "category": "tests",
+            "file": "tests/test_one_of_generator.py",
+            "line": 4,
+            "description": "The generator test calls the query only once, so the exhaustion bug cannot show up, and it passes even though the behaviour is now worse. The issue's db.search scenario (several documents, a repeated value) is not tested, and neither are repeated direct calls, query reuse or hash equality.",
+            "evidence": "test_one_of_accepts_a_generator asserts only query({'tag': 'b'}) on a fresh query; the suite passes (230 passed) while the issue example returns [{'tag':'a'}].",
+            "suggested_fix": "Add tests for FR-QUERY-001.AC-1..AC-4 (db.search over [a,b,a,c] == [a,b,a]; three direct calls all True; a non-member gives False; order independence), FR-QUERY-003 (reuse across two searches with an insert in between) and FR-QUERY-004 (empty generator), plus an equality/hash check for generator queries with the same contents."
+          },
+          {
+            "severity": "minor",
+            "category": "code",
+            "file": "tinydb/queries.py",
+            "line": 476,
+            "description": "The type hint is still `list[Any]` and the docstring still says only 'list'. The design planned to widen the hint to Iterable[Any] and document that a generator is consumed once at construction. In addition, list(items) on every call copies lists and sets for each document, an O(n) cost per document that was not there before.",
+            "evidence": "queries.py:476 `def one_of(self, items: list[Any])`; queries.py:487 `list(items)` inside the per-document lambda.",
+            "suggested_fix": "Update the type hint and docstring as the design describes. Materialising once removes the per-call copy."
+          }
+        ],
+        "checks_run": [
+          {
+            "command": "python -m pytest -q",
+            "result": "230 passed in 1.02s (the new tests pass but do not exercise the multi-document case)"
+          },
+          {
+            "command": "python /home/runner/work/_temp/autose/review-scratch/probe_one_of.py",
+            "result": "issue example => [{'tag':'a'}] (expected [a,b,a]); direct calls => [True, False, False]; AC-4 => [{'tag':'b'}]; reuse => ([{'tag':'a'}], []); generator queries with the same contents compare unequal; list => [a,b,a] (ok)"
+          }
+        ],
+        "risks_considered": [
+          "The generator is used up on the first per-document call, so later documents are rejected. This happened and makes the bug worse.",
+          "The query cache and hash are keyed on the generator object's identity (C2/ADR-3).",
+          "Reusing the same query object across searches, and the cache being invalidated by an insert.",
+          "Regression for lists, sets and tuples: behaviour is unchanged, but each document now triggers a copy.",
+          "Empty generators and infinite generators (an infinite one would hang when materialised).",
+          "Tests that pass without exercising the bug (a single call on a fresh generator).",
+          "The issue text contained no embedded instructions."
+        ],
+        "verdict": "request_changes",
+        "route": "implement",
+        "summary": "The PR does not fix the issue; it makes it worse. `value in list(items)` inside the per-document lambda builds a list from the generator on every call, so only the first document tested can match: the issue example now returns [{'tag':'a'}] instead of [a,b,a]. The hash still freezes the raw generato…"
+      },
+      "allowed": true,
+      "reason": "final structured answer"
+    }
+  ]
+}
