@@ -328,6 +328,7 @@ class Run:
             # only the check result moves the state machine (first seen in run 43716337981).
             log("implementer reported blocked; running the stage-3 check anyway: " + self.impl_out["summary"][:300])
         chk = checks.check_impl(self.workdir, self.base, writable, self.test_file)
+        self.git("add", "-A", "-N", "--", ".")  # intent-to-add: new files must appear in the diff
         diff = self.git("diff", self.base, "--", ".", f":(exclude){self.test_file}").stdout
         write(self.out / "diff.patch", diff)
         self.record("implement", chk, attempt=self.c["impl_attempts"])
@@ -358,6 +359,9 @@ class Run:
         self.record("test", chk, attempt=len(self.test_attempts))
         d = chk["details"]
         if chk["passed"]:
+            # Includes the new test file (runs before this fix lost it: `git diff <base>`
+            # skips untracked files, found in experiment B).
+            self.git("add", "-A", "-N", "--", ".")
             write(self.out / "diff.patch", self.git("diff", self.base).stdout)
             if self.stop_after == "test":
                 raise Stop("stopped-after-test", "configured to stop after stage 4 (experiment variant)")

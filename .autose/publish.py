@@ -97,7 +97,8 @@ def main() -> int:
     store.save(f"issue #{issue}: handover after review round {rnd}", files)
     gh.comment_pr(pr, merge_readiness(state, verdict, send_backs, max_sb))
     gh.add_labels(pr, "autose:ready-for-human")
-    gh.remove_labels(issue, "autose:running")
+    gh.remove_labels(issue, "autose:running", "autose:pr-open")
+    gh.add_labels(issue, "autose:ready-for-human")
     log("handed over to a human")
     return 0
 
