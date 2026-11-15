@@ -1,0 +1,59 @@
+{
+  "label": "judge.0.0",
+  "role": "judge",
+  "ok": true,
+  "cost_usd": 0.00077,
+  "usage": {
+    "input_tokens": 2,
+    "cache_creation_input_tokens": 4846,
+    "cache_read_input_tokens": 0,
+    "output_tokens": 327,
+    "output_tokens_details": {
+      "thinking_tokens": 0
+    },
+    "server_tool_use": {
+      "web_search_requests": 0,
+      "web_fetch_requests": 0
+    },
+    "service_tier": "standard",
+    "cache_creation": {
+      "ephemeral_1h_input_tokens": 0,
+      "ephemeral_5m_input_tokens": 4846
+    },
+    "inference_geo": "global",
+    "iterations": [],
+    "speed": "standard",
+    "fallback_credit": null
+  },
+  "num_turns": 2,
+  "duration_s": 1.9,
+  "error": "",
+  "denials": 0,
+  "model": "claude-haiku-5-5",
+  "tool_calls": [
+    {
+      "tool": "StructuredOutput",
+      "args": {
+        "criteria": [
+          {
+            "id": "FR-QFRAG-001.AC-1",
+            "testable": true,
+            "reason": "Concrete starting state (two named documents, MemoryStorage, prior search on the same instance), a single search action, and an explicit expected result (a list containing only the document named 'raj') that a pytest assertion can check."
+          },
+          {
+            "id": "FR-QFRAG-001.AC-2",
+            "testable": true,
+            "reason": "Concrete fresh TinyDB with two named documents and no prior search, one search action, and an explicit expected result (a list containing only 'raj') that can be asserted directly."
+          },
+          {
+            "id": "FR-QFRAG-001.AC-3",
+            "testable": true,
+            "reason": "Concrete state with a prior search on the same instance, one follow-up search, and an explicit expected result (a list containing only 'ana') that is unambiguous and assertable."
+          }
+        ]
+      },
+      "allowed": true,
+      "reason": "final structured answer"
+    }
+  ]
+}

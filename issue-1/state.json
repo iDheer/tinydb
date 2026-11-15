@@ -1,0 +1,31 @@
+{
+  "issue": 1,
+  "branch": "autose/issue-1",
+  "base_sha": "7c7d3a275c2c8e9261d89e72c5fac9f6b3a23aeb",
+  "runs": [
+    {
+      "run_id": "43716337981",
+      "attempt": "1",
+      "mode": "start",
+      "round": 1,
+      "variant": "baseline",
+      "status": "stopped",
+      "reason": "stage 3: implementer blocked: In tinydb/queries.py, Query.fragment() now hashes ('fragment', self._path, freeze(document)) instead of ('fragment', freeze(document)). This is the one-line change from design.md. It matches the other query methods and should fix the issue: fragment queries on different paths no longer share a hash, compare equal, or collide in the table query cache. I could not run `python -m pytest -q` or `python -m mypy tinydb` because the Bash sandbox failed on every command with \"apply-seccomp: write /proc/self/setgroups ... Permission denied\". The change is unverified until the tests and mypy are run in a working environment.",
+      "cost_usd": 0.237,
+      "tokens": {
+        "input_tokens": 24,
+        "output_tokens": 8305,
+        "cache_read_input_tokens": 131713,
+        "cache_creation_input_tokens": 62153
+      },
+      "run_url": "https://github.com/iDheer/tinydb/actions/runs/43716337981",
+      "dir": "issue-1/run-43716337981-1",
+      "passed_stages": [
+        "spec",
+        "design"
+      ]
+    }
+  ],
+  "round": 1,
+  "status": "stopped"
+}

@@ -1,0 +1,30 @@
+[
+  {
+    "type": "tool_use",
+    "name": "StructuredOutput",
+    "input": {
+      "criteria": [
+        {
+          "id": "FR-QFRAG-001.AC-1",
+          "testable": true,
+          "reason": "Concrete starting state (two named documents, MemoryStorage, prior search on the same instance), a single search action, and an explicit expected result (a list containing only the document named 'raj') that a pytest assertion can check."
+        },
+        {
+          "id": "FR-QFRAG-001.AC-2",
+          "testable": true,
+          "reason": "Concrete fresh TinyDB with two named documents and no prior search, one search action, and an explicit expected result (a list containing only 'raj') that can be asserted directly."
+        },
+        {
+          "id": "FR-QFRAG-001.AC-3",
+          "testable": true,
+          "reason": "Concrete state with a prior search on the same instance, one follow-up search, and an explicit expected result (a list containing only 'ana') that is unambiguous and assertable."
+        }
+      ]
+    }
+  },
+  {
+    "type": "tool_result",
+    "is_error": null,
+    "content": "Structured output provided successfully"
+  }
+]

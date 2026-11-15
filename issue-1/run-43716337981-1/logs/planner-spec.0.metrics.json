@@ -1,0 +1,208 @@
+{
+  "label": "planner-spec.0",
+  "role": "planner",
+  "ok": true,
+  "cost_usd": 0.1078,
+  "usage": {
+    "input_tokens": 6,
+    "cache_creation_input_tokens": 24878,
+    "cache_read_input_tokens": 43574,
+    "output_tokens": 4124,
+    "output_tokens_details": {
+      "thinking_tokens": 1068
+    },
+    "server_tool_use": {
+      "web_search_requests": 0,
+      "web_fetch_requests": 0
+    },
+    "service_tier": "standard",
+    "cache_creation": {
+      "ephemeral_1h_input_tokens": 0,
+      "ephemeral_5m_input_tokens": 24878
+    },
+    "inference_geo": "global",
+    "iterations": [],
+    "speed": "standard",
+    "fallback_credit": null
+  },
+  "num_turns": 5,
+  "duration_s": 30.5,
+  "error": "",
+  "denials": 0,
+  "model": "claude-sonnet-5-5",
+  "tool_calls": [
+    {
+      "tool": "Grep",
+      "args": {
+        "pattern": "fragment",
+        "path": "/home/runner/work/tinydb/tinydb/work/tinydb",
+        "output_mode": "content"
+      },
+      "allowed": true,
+      "reason": "read inside working tree"
+    },
+    {
+      "tool": "Read",
+      "args": {
+        "file_path": "/home/runner/work/tinydb/tinydb/work/tinydb/queries.py",
+        "offset": 90,
+        "limit": 150
+      },
+      "allowed": true,
+      "reason": "read inside working tree"
+    },
+    {
+      "tool": "Read",
+      "args": {
+        "file_path": "/home/runner/work/tinydb/tinydb/work/tinydb/queries.py",
+        "offset": 470,
+        "limit": 50
+      },
+      "allowed": true,
+      "reason": "read inside working tree"
+    },
+    {
+      "tool": "StructuredOutput",
+      "args": {
+        "title": "fragment() on a nested query path must test that path, not another path's result",
+        "summary": "Issue #1 is a precise bug report. `Query.fragment()` is built with a hash of `('fragment', freeze(document))` only (tinydb/queries.py:497-501). The query path is not part of it, although `_generate_test` does resolve the path at run time. As a result `User.home.fragment(x)` and `User.work.fragment(x…",
+        "verdict": "READY-WITH-OPEN-ITEMS",
+        "requirements": [
+          {
+            "id": "FR-QFRAG-001",
+            "kind": "FR",
+            "statement": "When a database is searched with a fragment query on a nested field path, the system shall return exactly the documents whose value at that path contains the given fragment, regardless of any earlier search with the same fragment on a different path in the same TinyDB instance.",
+            "source": "STATED",
+            "source_quote": "print(db.search(User.work.fragment({'city': 'Pune'})))  # expected [raj], but I get [ana] again",
+            "priority": "MUST",
+            "status": "READY",
+            "acceptance_criteria": [
+              {
+                "id": "FR-QFRAG-001.AC-1",
+                "given": "a TinyDB on MemoryStorage with documents {'name':'ana','home':{'city':'Pune'},'work':{'city':'Delhi'}} and {'name':'raj','home':{'city':'Delhi'},'work':{'city':'Pune'}}, and db.search(User.home.fragment({'city':'Pune'})) has already been executed on it",
+                "when": "db.search(User.work.fragment({'city':'Pune'})) is executed on the same TinyDB instance",
+                "then": "the result is a list containing only the document with name 'raj'"
+              },
+              {
+                "id": "FR-QFRAG-001.AC-2",
+                "given": "the same two documents in a freshly created TinyDB on MemoryStorage and no earlier search",
+                "when": "db.search(User.work.fragment({'city':'Pune'})) is executed",
+                "then": "the result is a list containing only the document with name 'raj'"
+              },
+              {
+                "id": "FR-QFRAG-001.AC-3",
+                "given": "the same two documents, and db.search(User.work.fragment({'city':'Pune'})) has already been executed on the same instance",
+                "when": "db.search(User.home.fragment({'city':'Pune'})) is executed",
+                "then": "the result is a list containing only the document with name 'ana'"
+              }
+            ],
+            "links": [
+              "related: Q-001",
+              "related: TERM-001",
+              "related: RSK-001"
+            ]
+          },
+          {
+            "id": "FR-QFRAG-002",
+            "kind": "FR",
+            "statement": "Candidate (not agreed): two fragment queries built on different field paths with the same fragment document shall not compare equal.",
+            "source": "ASSUMED",
+            "source_quote": "Also `User.home.fragment({...}) == User.work.fragment({...})` is `True`, which surprised me.",
+            "priority": "UNSET",
+            "status": "ASSUMPTION-ONLY",
+            "acceptance_criteria": [
+              {
+                "id": "FR-QFRAG-002.AC-1",
+                "given": "User = Query()",
+                "when": "User.home.fragment({'city': 'Pune'}) == User.work.fragment({'city': 'Pune'}) is evaluated",
+                "then": "the result is False"
+              },
+              {
+                "id": "FR-QFRAG-002.AC-2",
+                "given": "User = Query()",
+                "when": "User.home.fragment({'city': 'Pune'}) == User.home.fragment({'city': 'Pune'}) is evaluated",
+                "then": "the result is True"
+              }
+            ],
+            "links": [
+              "ASM-001",
+              "related: Q-001"
+            ]
+          }
+        ],
+        "terms": [
+          {
+            "id": "TERM-001",
+            "term": "caching problem",
+            "interpretations": [
+              "The query-result cache of the table returns a stored result because it considers the two queries identical (consistent with the equal queries the reporter observed).",
+              "The cache is stale across searches for some other reason (the reporter's guess, not a stated requirement). Either reading only describes the cause; the required behaviour is in FR-QFRAG-001."
+            ]
+          },
+          {
+            "id": "TERM-002",
+            "term": "nested field",
+            "interpretations": [
+              "A dict-valued field reached via attribute access, such as User.home. This is the case in the issue example.",
+              "A deeper path, such as User.a.b.c, or a path through Query()['key'] or a map() step. The issue shows only one level, so deeper paths are not specified."
+            ]
+          }
+        ],
+        "open_questions": [
+          {
+            "id": "Q-001",
+            "priority": "P3",
+            "question": "Should two fragment queries on different paths with the same fragment document also be unequal (== False) and have different hashes, as a requirement in its own right and not only as a side effect of correct search results?",
+            "why_it_matters": "The reporter only says the equality 'surprised' them. Without an answer FR-QFRAG-002 stays a candidate. It does not block FR-QFRAG-001, whose acceptance criteria concern search results only.",
+            "options": [
+              "(a) Yes, queries with different paths must be unequal",
+              "(b) No, only search results must be correct"
+            ],
+            "proposed_default": "(a), recorded as ASM-001 (PROVISIONAL)",
+            "blocks": [
+              "FR-QFRAG-002"
+            ]
+          },
+          {
+            "id": "Q-002",
+            "priority": "P3",
+            "question": "Is the same-path-different-result problem expected to be checked and fixed for other query methods and for deeper or map() paths, or only for fragment()?",
+            "why_it_matters": "The issue only reports fragment(). Whether other tests are in scope changes the size of the work but not FR-QFRAG-001.",
+            "options": [
+              "(a) fragment() only",
+              "(b) also audit other Query test methods and deeper paths"
+            ],
+            "proposed_default": "(a) fragment() only. Deeper paths via fragment() are covered implicitly by FR-QFRAG-001's 'nested field path'.",
+            "blocks": []
+          }
+        ],
+        "assumptions": [
+          {
+            "id": "ASM-001",
+            "text": "Equal-looking queries on different paths should compare unequal and hash differently (the reporter's surprise is read as an expectation).",
+            "risk_if_wrong": "A needless equality or hash requirement would be added. This is low impact because the search-result requirement is independent."
+          },
+          {
+            "id": "ASM-002",
+            "text": "The maintainer of iDheer/tinydb is the decision owner for scope questions, and the reporter is the requester. The issue-time stakeholder mode is unavailable.",
+            "risk_if_wrong": "Q-001 and Q-002 may go to the wrong person. No core requirement depends on it."
+          },
+          {
+            "id": "ASM-003",
+            "text": "Python 3.12, Windows 11 and tinydb 4.9.0 are context only. The behaviour is expected to be platform independent, and the repository code shows the path missing from the fragment hash regardless of platform.",
+            "risk_if_wrong": "If the failure were platform-specific, the acceptance tests would pass on Linux without reproducing the reporter's problem."
+          }
+        ],
+        "out_of_scope": [
+          "The design of the fix, including how the query hash or cache key is built",
+          "Changes to query result caching in general, or to the query cache size",
+          "Root-level fragment queries such as Query().fragment({...}) with an empty path, which are existing behaviour not mentioned in the issue",
+          "Other Query methods such as all, one_of and test, unless Q-002 is answered otherwise",
+          "Opening a fresh TinyDB between searches as a workaround"
+        ]
+      },
+      "allowed": true,
+      "reason": "final structured answer"
+    }
+  ]
+}
