@@ -1,0 +1,129 @@
+[
+  {
+    "type": "tool_use",
+    "name": "Read",
+    "input": {
+      "file_path": "/home/runner/work/tinydb/tinydb/work/tinydb/storages.py",
+      "limit": 170
+    }
+  },
+  {
+    "type": "tool_result",
+    "is_error": null,
+    "content": "1\t\"\"\"\n2\tContains the :class:`base class <tinydb.storages.Storage>` for storages and\n3\timplementations.\n4\t\"\"\"\n5\t\n6\timport io\n7\timport json\n8\timport os\n9\timport warnings\n10\tfrom abc import ABC, abstractmethod\n11\tfrom typing import Any, Optional\n12\t\n13\t__all__ = ('Storage', 'JSONStorage', 'MemoryStorage')\n14\t\n15\t\n16\tdef touch(path: str, create_dirs: bool):\n17\t    \"\"\"\n18\t    Create a file if it doesn't exist yet.\n19\t\n20\t    :param path: The file to create.\n21\t    :param create_dirs: Whether to create all missing parent directories.\n22\t    \"\"\"\n23\t    if create_dirs:\n24\t        base_dir = os.path.dirname(path)\n25\t\n26\t        # Check if we need to create missing parent directories\n27\t        if base_dir and not os.path.exists(base_dir):\n28\t            os.makedirs(base_dir)\n29\t\n30\t    # Create the file by opening it in 'a' mode which creates the file if it\n31\t    # does not exist yet but does not modify its contents\n32\t    with open(path, 'a'):\n33\t        pass\n34\t\n35\t\n36\tclass Storage(ABC):\n37\t    \"\"\"\n38\t    The abstract base class for all Storages.\n39\t\n40\t    A Storage (de)serializes the current state of the database and stores it in\n41\t    some place (memory, file on disk, ...).\n42\t    \"\"\"\n43\t\n44\t    # Using ABCMeta as metaclass allows instantiating only storages that have\n45\t    # implemented read and write\n46\t\n47\t    @abstractmethod\n48\t    def read(self) -> Optional[dict[str, dict[str, Any]]]:\n49\t        \"\"\"\n50\t        Read the current state.\n51\t\n52\t        Any kind of deserialization should go here.\n53\t\n54\t        Return ``None`` here to indicate that the storage is empty.\n55\t        \"\"\"\n56\t\n57\t        raise NotImplementedError('To be overridden!')\n58\t\n59\t    @abstractmethod\n60\t    def write(self, data: dict[str, dict[str, Any]]) -> None:\n61\t        \"\"\"\n62\t        Write the current state of the database to the storage.\n63\t\n64\t        Any kind of serialization should go here.\n65\t\n66\t        :param data: The current state of the database.\n67\t        \"\"\"\n68\t\n69\t        raise NotImplementedError('To be overridden!')\n70\t\n71\t    def close(self) -> None:\n72\t        \"\"\"\n73\t        Optional: Close open file handles, etc.\n74\t        \"\"\"\n75\t\n76\t        pass\n77\t\n78\t\n79\tclass JSONStorage(Storage):\n80\t    \"\"\"\n81\t    Store the data in a JSON file.\n82\t    \"\"\"\n83\t\n84\t    def __init__(self, path: str, create_dirs=False, encoding=None, access_mode='r+', **kwargs):\n85\t        \"\"\"\n86\t        Create a new instance.\n87\t\n88\t        Also creates the storage file, if it doesn't exist and the access mode\n89\t        is appropriate for writing.\n90\t\n91\t        **Note:** Using an access mode other than `r` or `r+` will probably\n92\t        lead to data loss or data corruption!\n93\t\n94\t        **Note:** **Never** pass untrusted or user-controlled code as ``kwargs``\n95\t        members like ``cls`` or ``default`` will be called on every write\n96\t        operation.\n97\t\n98\t        :param path: Where to store the JSON data.\n99\t        :param access_mode: mode in which the file is opened (r, r+)\n100\t        :type access_mode: str\n101\t        \"\"\"\n102\t\n103\t        super().__init__()\n104\t\n105\t        self._mode = access_mode\n106\t        self.kwargs = kwargs\n107\t\n108\t        if access_mode not in ('r', 'rb', 'r+', 'rb+'):\n109\t            warnings.warn(\n110\t                'Using an `access_mode` other than \\'r\\', \\'rb\\', \\'r+\\' '\n111\t                'or \\'rb+\\' can cause data loss or corruption'\n112\t            )\n113\t\n114\t        # Create the file if it doesn't exist and creating is allowed by the\n115\t        # access mode\n116\t        if any([character in self._mode for character in ('+', 'w', 'a')]):  # any of the writing modes\n117\t            touch(path, create_dirs=create_dirs)\n118\t\n119\t        # Open the file for reading/writing\n120\t        self._handle = open(path, mode=self._mode, encoding=encoding)\n121\t\n122\t    def close(self) -> None:\n123\t        self._handle.close()\n124\t\n125\t    def read(self) -> Optional[dict[str, dict[str, Any]]]:\n126\t        # Get the file size"
+  },
+  {
+    "type": "tool_use",
+    "name": "Edit",
+    "input": {
+      "replace_all": false,
+      "file_path": "/home/runner/work/tinydb/tinydb/work/tinydb/storages.py",
+      "old_string": "        serialized = json.dumps(data, **self.kwargs)",
+      "new_string": "        kwargs = dict(self.kwargs)\n        user_default = kwargs.get('default')\n\n        if user_default is None:\n            kwargs['default'] = _encode_temporal\n        else:\n            def default(obj):\n                if isinstance(obj, datetime.date):\n                    return _encode_temporal(obj)\n                return user_default(obj)\n\n            kwargs['default'] = default\n\n        serialized = json.dumps(data, **kwargs)"
+    }
+  },
+  {
+    "type": "tool_result",
+    "is_error": null,
+    "content": "The file /home/runner/work/tinydb/tinydb/work/tinydb/storages.py has been updated successfully."
+  },
+  {
+    "type": "tool_use",
+    "name": "Edit",
+    "input": {
+      "replace_all": false,
+      "file_path": "/home/runner/work/tinydb/tinydb/work/tinydb/storages.py",
+      "old_string": "            return json.load(self._handle)",
+      "new_string": "            return json.load(self._handle, object_hook=_decode_temporal)"
+    }
+  },
+  {
+    "type": "tool_result",
+    "is_error": null,
+    "content": "The file /home/runner/work/tinydb/tinydb/work/tinydb/storages.py has been updated successfully."
+  },
+  {
+    "type": "tool_use",
+    "name": "Edit",
+    "input": {
+      "replace_all": false,
+      "file_path": "/home/runner/work/tinydb/tinydb/work/tinydb/storages.py",
+      "old_string": "import io\nimport json",
+      "new_string": "import datetime\nimport io\nimport json"
+    }
+  },
+  {
+    "type": "tool_result",
+    "is_error": null,
+    "content": "The file /home/runner/work/tinydb/tinydb/work/tinydb/storages.py has been updated successfully."
+  },
+  {
+    "type": "tool_use",
+    "name": "Edit",
+    "input": {
+      "replace_all": false,
+      "file_path": "/home/runner/work/tinydb/tinydb/work/tinydb/storages.py",
+      "old_string": "def touch(path: str, create_dirs: bool):",
+      "new_string": "_TYPE_KEY = '__tinydb_type__'\n_VALUE_KEY = '__tinydb_value__'\n\n\ndef _encode_temporal(obj: Any) -> dict[str, str]:\n    \"\"\"\n    JSON ``default`` hook encoding datetimes and dates as tagged dicts.\n    \"\"\"\n    # datetime must be checked first as it is a subclass of date\n    if isinstance(obj, datetime.datetime):\n        return {_TYPE_KEY: 'datetime', _VALUE_KEY: obj.isoformat()}\n    if isinstance(obj, datetime.date):\n        return {_TYPE_KEY: 'date', _VALUE_KEY: obj.isoformat()}\n\n    raise TypeError(\n        'Object of type {0} is not JSON serializable'.format(type(obj).__name__)\n    )\n\n\ndef _decode_temporal(dct: dict[str, Any]) -> Any:\n    \"\"\"\n    JSON ``object_hook`` turning tagged dicts back into datetimes and dates.\n    \"\"\"\n    if len(dct) == 2 and _TYPE_KEY in dct and _VALUE_KEY in dct:\n        kind = dct[_TYPE_KEY]\n        value = dct[_VALUE_KEY]\n        try:\n            if kind == 'datetime' and isinstance(value, str):\n                return datetime.datetime.fromisoformat(value)\n            if kind == 'date' and isinstance(value, str):\n                return datetime.date.fromisoformat(value)\n        except ValueError:\n            pass\n\n    return dct\n\n\ndef touch(path: str, create_dirs: bool):"
+    }
+  },
+  {
+    "type": "tool_result",
+    "is_error": null,
+    "content": "The file /home/runner/work/tinydb/tinydb/work/tinydb/storages.py has been updated successfully."
+  },
+  {
+    "type": "tool_use",
+    "name": "Bash",
+    "input": {
+      "command": "python -m pytest -q 2>&1 | tail -3; python -m mypy tinydb 2>&1 | tail -3"
+    }
+  },
+  {
+    "type": "tool_result",
+    "is_error": true,
+    "content": "PreToolUse:Bash hook error: one plain command per call: no pipes, redirects, chaining or substitution"
+  },
+  {
+    "type": "tool_use",
+    "name": "Bash",
+    "input": {
+      "command": "python -m pytest -q"
+    }
+  },
+  {
+    "type": "tool_use",
+    "name": "Bash",
+    "input": {
+      "command": "python -m mypy tinydb"
+    }
+  },
+  {
+    "type": "tool_result",
+    "is_error": false,
+    "content": "============================= test session starts ==============================\nplatform linux -- Python 3.12.16, pytest-9.2.0, pluggy-1.7.0\nrootdir: /home/runner/work/tinydb/tinydb/work\nconfigfile: pytest.ini\nplugins: cov-7.1.0, anyio-4.16.0\ncollected 228 items\n\ntests/test_middlewares.py .........                                      [  3%]\ntests/test_operations.py ..............                                  [ 10%]\ntests/test_queries.py ..................................                 [ 25%]\ntests/test_storages.py ..............                                    [ 31%]\ntests/test_tables.py ...............................                     [ 44%]\ntests/test_tinydb.py ................................................... [ 67%]\n...............................................................          [ 94%]\ntests/test_utils.py ............                                         [100%]\n\n================================ tests coverage ================================\n_______________ coverage: platform linux, python 3.12.16-final-0 _______________\n\nName                    Stmts   Miss Branch BrPart  Cover\n---------------------------------------------------------\ntinydb/__init__.py          5      0      0      0   100%\ntinydb/database.py         53      0     10      0   100%\ntinydb/middlewares.py      44      3     14      3    90%\ntinydb/mypy_plugin.py      26     26      2      0     0%\ntinydb/operations.py       26      0      0      0   100%\ntinydb/queries.py         130      2     30      4    96%\ntinydb/storages.py         87     16     22      4    76%\ntinydb/table.py           241      1    104      8    97%\ntinydb/utils.py            78      1     18      1    98%\ntinydb/version.py           1      0      0      0   100%\n---------------------------------------------------------\nTOTAL                     691     49    200     20    91%\n============================= 228 passed in 1.08s =============================="
+  },
+  {
+    "type": "tool_result",
+    "is_error": false,
+    "content": "Success: no issues found in 10 source files"
+  },
+  {
+    "type": "tool_use",
+    "name": "StructuredOutput",
+    "input": {
+      "status": "done",
+      "summary": "JSONStorage now round-trips datetime and date values. I added `_TYPE_KEY`, `_VALUE_KEY`, `_encode_temporal` and `_decode_temporal` in tinydb/storages.py, plus `import datetime`. `write()` passes a `default` hook to `json.dumps`. It tries the temporal encoding first, then calls a user-supplied `default` if there is one, and it works on a copy of the kwargs. `read()` uses `object_hook=_decode_temporal`. Only a dict with exactly the two marker keys and a valid ISO value is decoded, so look-alike strings stay `str`. I didn't write any round-trip checks for the new behaviour. `python -m pytest -q` passes (228 tests) and `python -m mypy tinydb` is clean.",
+      "changed_files": [
+        "tinydb/storages.py"
+      ],
+      "design_gap": "",
+      "disputed_tests": []
+    }
+  },
+  {
+    "type": "tool_result",
+    "is_error": null,
+    "content": "Structured output provided successfully"
+  }
+]

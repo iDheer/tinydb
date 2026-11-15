@@ -1,0 +1,255 @@
+[
+  {
+    "type": "tool_use",
+    "name": "Read",
+    "input": {
+      "file_path": "/home/runner/work/tinydb/tinydb/work/tinydb/storages.py"
+    }
+  },
+  {
+    "type": "tool_result",
+    "is_error": null,
+    "content": "1\t\"\"\"\n2\tContains the :class:`base class <tinydb.storages.Storage>` for storages and\n3\timplementations.\n4\t\"\"\"\n5\t\n6\timport io\n7\timport json\n8\timport os\n9\timport warnings\n10\tfrom abc import ABC, abstractmethod\n11\tfrom typing import Any, Optional\n12\t\n13\t__all__ = ('Storage', 'JSONStorage', 'MemoryStorage')\n14\t\n15\t\n16\tdef touch(path: str, create_dirs: bool):\n17\t    \"\"\"\n18\t    Create a file if it doesn't exist yet.\n19\t\n20\t    :param path: The file to create.\n21\t    :param create_dirs: Whether to create all missing parent directories.\n22\t    \"\"\"\n23\t    if create_dirs:\n24\t        base_dir = os.path.dirname(path)\n25\t\n26\t        # Check if we need to create missing parent directories\n27\t        if base_dir and not os.path.exists(base_dir):\n28\t            os.makedirs(base_dir)\n29\t\n30\t    # Create the file by opening it in 'a' mode which creates the file if it\n31\t    # does not exist yet but does not modify its contents\n32\t    with open(path, 'a'):\n33\t        pass\n34\t\n35\t\n36\tclass Storage(ABC):\n37\t    \"\"\"\n38\t    The abstract base class for all Storages.\n39\t\n40\t    A Storage (de)serializes the current state of the database and stores it in\n41\t    some place (memory, file on disk, ...).\n42\t    \"\"\"\n43\t\n44\t    # Using ABCMeta as metaclass allows instantiating only storages that have\n45\t    # implemented read and write\n46\t\n47\t    @abstractmethod\n48\t    def read(self) -> Optional[dict[str, dict[str, Any]]]:\n49\t        \"\"\"\n50\t        Read the current state.\n51\t\n52\t        Any kind of deserialization should go here.\n53\t\n54\t        Return ``None`` here to indicate that the storage is empty.\n55\t        \"\"\"\n56\t\n57\t        raise NotImplementedError('To be overridden!')\n58\t\n59\t    @abstractmethod\n60\t    def write(self, data: dict[str, dict[str, Any]]) -> None:\n61\t        \"\"\"\n62\t        Write the current state of the database to the storage.\n63\t\n64\t        Any kind of serialization should go here.\n65\t\n66\t        :param data: The current state of the database.\n67\t        \"\"\"\n68\t\n69\t        raise NotImplementedError('To be overridden!')\n70\t\n71\t    def close(self) -> None:\n72\t        \"\"\"\n73\t        Optional: Close open file handles, etc.\n74\t        \"\"\"\n75\t\n76\t        pass\n77\t\n78\t\n79\tclass JSONStorage(Storage):\n80\t    \"\"\"\n81\t    Store the data in a JSON file.\n82\t    \"\"\"\n83\t\n84\t    def __init__(self, path: str, create_dirs=False, encoding=None, access_mode='r+', **kwargs):\n85\t        \"\"\"\n86\t        Create a new instance.\n87\t\n88\t        Also creates the storage file, if it doesn't exist and the access mode\n89\t        is appropriate for writing.\n90\t\n91\t        **Note:** Using an access mode other than `r` or `r+` will probably\n92\t        lead to data loss or data corruption!\n93\t\n94\t        **Note:** **Never** pass untrusted or user-controlled code as ``kwargs``\n95\t        members like ``cls`` or ``default`` will be called on every write\n96\t        operation.\n97\t\n98\t        :param path: Where to store the JSON data.\n99\t        :param access_mode: mode in which the file is opened (r, r+)\n100\t        :type access_mode: str\n101\t        \"\"\"\n102\t\n103\t        super().__init__()\n104\t\n105\t        self._mode = access_mode\n106\t        self.kwargs = kwargs\n107\t\n108\t        if access_mode not in ('r', 'rb', 'r+', 'rb+'):\n109\t            warnings.warn(\n110\t                'Using an `access_mode` other than \\'r\\', \\'rb\\', \\'r+\\' '\n111\t                'or \\'rb+\\' can cause data loss or corruption'\n112\t            )\n113\t\n114\t        # Create the file if it doesn't exist and creating is allowed by the\n115\t        # access mode\n116\t        if any([character in self._mode for character in ('+', 'w', 'a')]):  # any of the writing modes\n117\t            touch(path, create_dirs=create_dirs)\n118\t\n119\t        # Open the file for reading/writing\n120\t        self._handle = open(path, mode=self._mode, encoding=encoding)\n121\t\n122\t    def close(self) -> None:\n123\t        self._handle.close()\n124\t\n125\t    def read(self) -> Optional[dict[str, dict[str, Any]]]:\n126\t        # Get the file size"
+  },
+  {
+    "type": "tool_use",
+    "name": "StructuredOutput",
+    "input": {
+      "summary": "Make JSONStorage encode datetime/date values as tagged single-key JSON objects through json's `default` hook on write, and decode them back with `object_hook` on read. Only tinydb/storages.py changes.",
+      "approach": "All changes are in tinydb/storages.py, so serialisation stays in the storage layer (ARCHITECTURE component 4, C4). I add two module-level constants and two private helper functions.\n\n- **Encoding.** `_json_default(obj, user_default=None)` handles `datetime.datetime` first, because it subclasses `date`, and returns `{\"__tinydb_datetime__\": obj.isoformat()}`. It handles `datetime.date` next and returns `{\"__tinydb_date__\": obj.isoformat()}`. `isoformat()` keeps microseconds and the `+HH:MM` offset for aware values, and gives no offset for naive ones. For any other type it delegates to the user's `default` kwarg if one was given, and otherwise raises `TypeError` as the json module does.\n- **Decoding.** `_json_object_hook(obj)` checks for a dict with exactly one key that is one of the two markers and whose value is a `str`. It returns `datetime.fromisoformat(value)` or `date.fromisoformat(value)`. If parsing raises `ValueError`, it returns the dict unchanged, so a malformed look-alike dict is not lost. Every other dict is returned as is. `object_hook` runs bottom-up on every JSON object, so nested values in dicts and lists decode too (ASM-001). It also runs on the table and doc-id dicts, which are untouched because they are not marker dicts.\n- **Wiring.**\n  - `JSONStorage.write` builds the dumps kwargs as `dict(self.kwargs)` and sets `default` to a closure over `_json_default` with the user's `default` (popped from the copy) as fallback. It then calls `json.dumps(data, **kwargs)`.\n  - `JSONStorage.read` calls `json.load(self._handle, object_hook=_json_object_hook)`.\n  - The write path never mutates `self.kwargs`. Files without dates are byte-identical to before, because `default` is only called for objects json cannot serialise (ASM-004).\n- **Strings and Query.**\n  - Date-looking strings stay plain JSON strings and are never parsed, so they come back as `str` (FR-004).\n  - Round-tripped values are real datetime/date objects, so existing Query comparisons work unchanged (FR-005). `queries.py` is untouched (CON-003).\n  - MemoryStorage is untouched (CON-002). Imports add only `datetime` from the standard library (CON-001).\n- **Offsets.** An aware datetime comes back with a `datetime.timezone` fixed offset, which matches ASM-003 and Q-004(a).\n- **Not covered.** `time` and `timedelta` are not handled (Q-003 default).",
+      "alternatives": [
+        {
+          "option": "Parse any ISO-looking string into datetime/date on read (no tagging)",
+          "why_not": "It violates FR-JSON-004 and maintainer decision 3: look-alike strings must stay strings, and date vs datetime would be ambiguous."
+        },
+        {
+          "option": "Add a new storage or a middleware (e.g. DateTimeMiddleware / DateTimeStorage)",
+          "why_not": "The spec scopes this to JSONStorage with a persisted round trip out of the box. A middleware would require users to opt in, and it would not see the serialisation boundary because Table hands it whole dicts that it would have to walk."
+        },
+        {
+          "option": "Walk the data dict in read/write and convert values recursively by hand",
+          "why_not": "It is more code, costs an extra O(n) pass on every write, and copies data. json's `default` and `object_hook` hooks already visit nested values for free."
+        },
+        {
+          "option": "Change Table._update_table or Document to convert values",
+          "why_not": "This breaks C3 and the separation of concerns, and it would also change MemoryStorage behaviour (CON-002). Serialisation belongs only in storages."
+        },
+        {
+          "option": "Subclass json.JSONEncoder/JSONDecoder and pass cls=",
+          "why_not": "It collides with a user-supplied `cls` kwarg, and `default`/`object_hook` is the smaller change."
+        }
+      ],
+      "files": [
+        {
+          "path": "tinydb/storages.py",
+          "change": "modify",
+          "purpose": "Add datetime/date encode and decode hooks and use them in JSONStorage.read and JSONStorage.write.",
+          "symbols": [
+            {
+              "name": "_DATETIME_MARKER",
+              "kind": "constant",
+              "change": "create",
+              "description": "Marker key '__tinydb_datetime__' for tagged datetime objects."
+            },
+            {
+              "name": "_DATE_MARKER",
+              "kind": "constant",
+              "change": "create",
+              "description": "Marker key '__tinydb_date__' for tagged date objects."
+            },
+            {
+              "name": "_json_default",
+              "kind": "function",
+              "change": "create",
+              "description": "json `default` hook. Encodes datetime (checked before date) and date as single-key marker dicts holding isoformat(). Otherwise delegates to an optional user-supplied default, or raises TypeError."
+            },
+            {
+              "name": "_json_object_hook",
+              "kind": "function",
+              "change": "create",
+              "description": "json `object_hook`. Turns a single-key marker dict with a str value into datetime/date via fromisoformat. Returns the dict unchanged for any other dict or on ValueError."
+            },
+            {
+              "name": "JSONStorage.write",
+              "kind": "method",
+              "change": "modify",
+              "description": "Copy self.kwargs, install a `default` that wraps _json_default with the user's default as fallback, and call json.dumps with it. Do not mutate self.kwargs."
+            },
+            {
+              "name": "JSONStorage.read",
+              "kind": "method",
+              "change": "modify",
+              "description": "Call json.load with object_hook=_json_object_hook."
+            }
+          ]
+        }
+      ],
+      "ac_mapping": [
+        {
+          "ac_id": "FR-JSON-001.AC-1",
+          "symbols": [
+            "_json_default",
+            "_json_object_hook",
+            "JSONStorage.write",
+            "JSONStorage.read"
+          ],
+          "test_idea": "Insert {'when': datetime(2026,1,1,12,30,15,123456)} into a TinyDB on a tmp JSONStorage file and close it. Reopen and call all(). Assert equality, type is datetime.datetime and tzinfo is None."
+        },
+        {
+          "ac_id": "FR-JSON-001.AC-2",
+          "symbols": [
+            "_json_default",
+            "JSONStorage.write"
+          ],
+          "test_idea": "Create a TinyDB on a not-yet-existing path and insert a doc with a datetime. Assert that no exception is raised."
+        },
+        {
+          "ac_id": "FR-JSON-002.AC-1",
+          "symbols": [
+            "_json_default",
+            "_json_object_hook"
+          ],
+          "test_idea": "Round-trip {'day': date(2026,1,1)} and assert it equals the original and type(v) is date, not datetime."
+        },
+        {
+          "ac_id": "FR-JSON-003.AC-1",
+          "symbols": [
+            "_json_default",
+            "_json_object_hook"
+          ],
+          "test_idea": "Round-trip a +05:30 aware datetime. Assert equality, utcoffset()==timedelta(hours=5, minutes=30) and tzinfo is not None."
+        },
+        {
+          "ac_id": "FR-JSON-003.AC-2",
+          "symbols": [
+            "_json_default",
+            "_json_object_hook"
+          ],
+          "test_idea": "Round-trip a datetime with tzinfo=timezone.utc and assert utcoffset()==timedelta(0) and equality."
+        },
+        {
+          "ac_id": "FR-JSON-003.AC-3",
+          "symbols": [
+            "_json_default",
+            "_json_object_hook"
+          ],
+          "test_idea": "Insert one naive and one -08:00 datetime with the same wall time. After reopening, assert the first has tzinfo None and the second has utcoffset()==timedelta(hours=-8)."
+        },
+        {
+          "ac_id": "FR-JSON-004.AC-1",
+          "symbols": [
+            "_json_object_hook"
+          ],
+          "test_idea": "Round-trip the strings '2026-01-01', '2026-01-01T12:00:00' and '2026-01-01T12:00:00+05:30'. Assert each is a str with identical text."
+        },
+        {
+          "ac_id": "FR-JSON-004.AC-2",
+          "symbols": [
+            "_json_default",
+            "_json_object_hook"
+          ],
+          "test_idea": "Store '2026-01-01' under 's' and date(2026,1,1) under 'd' in one doc. After reopening, assert 's' is str and 'd' is date."
+        },
+        {
+          "ac_id": "FR-JSON-005.AC-1",
+          "symbols": [
+            "_json_object_hook",
+            "JSONStorage.read"
+          ],
+          "test_idea": "Persist two datetime docs and reopen. Assert search(Query().when < datetime(2026,1,1)) returns exactly the 2025 doc."
+        },
+        {
+          "ac_id": "FR-JSON-005.AC-2",
+          "symbols": [
+            "_json_object_hook",
+            "JSONStorage.read"
+          ],
+          "test_idea": "Persist two date docs and reopen. Assert search(Query().day >= date(2026,1,1)) returns exactly the 2026-06-01 doc."
+        },
+        {
+          "ac_id": "FR-JSON-005.AC-3",
+          "symbols": [
+            "_json_object_hook",
+            "JSONStorage.read"
+          ],
+          "test_idea": "Persist a UTC-aware datetime and reopen. Assert search(Query().when == the same aware datetime) returns exactly one doc."
+        },
+        {
+          "ac_id": "CON-001.AC-1",
+          "symbols": [
+            "_json_default"
+          ],
+          "test_idea": "Parse pyproject.toml and assert that the [project] table declares no dependencies."
+        },
+        {
+          "ac_id": "CON-001.AC-2",
+          "symbols": [
+            "_json_default",
+            "_json_object_hook"
+          ],
+          "test_idea": "Use ast to collect the top-level imports of tinydb/storages.py. Assert each is in sys.stdlib_module_names or is 'tinydb'."
+        },
+        {
+          "ac_id": "CON-002.AC-1",
+          "symbols": [
+            "MemoryStorage"
+          ],
+          "test_idea": "Insert {'when': datetime(2026,1,1)} into TinyDB(storage=MemoryStorage). Assert all() returns an equal datetime."
+        },
+        {
+          "ac_id": "CON-002.AC-2",
+          "symbols": [
+            "MemoryStorage"
+          ],
+          "test_idea": "Use ast to get the source segment of the MemoryStorage class in the working tree and in `git show main:tinydb/storages.py`. Assert the two are equal."
+        },
+        {
+          "ac_id": "CON-003.AC-1",
+          "symbols": [],
+          "test_idea": "Run `git diff main -- tinydb/queries.py` and assert the output is empty."
+        },
+        {
+          "ac_id": "CON-003.AC-2",
+          "symbols": [],
+          "test_idea": "Compare dir(Query) against a hard-coded expected set of public names, or against the set from the base-commit source."
+        }
+      ],
+      "constraints": [
+        {
+          "id": "C1",
+          "how_respected": "JSONStorage still subclasses Storage. read() still returns None for an empty file, and write() and close() keep their signatures."
+        },
+        {
+          "id": "C2",
+          "how_respected": "No query operation is added or changed. Round-tripped values are real datetime/date objects, so existing hashed comparison queries work unchanged."
+        },
+        {
+          "id": "C3",
+          "how_respected": "Table and _update_table are untouched. Conversion happens only inside the storage's read and write, and the whole-database read/write contract (ADR-1) is kept."
+        },
+        {
+          "id": "C4",
+          "how_respected": "The helpers live in storages.py and import only the standard library `datetime`. storages.py still imports no TinyDB module, and queries.py is not touched."
+        },
+        {
+          "id": "C5",
+          "how_respected": "Only the standard-library `datetime` and `json` modules are used, and pyproject.toml is not changed."
+        }
+      ],
+      "risks": [
+        "Marker collision (Q-002/ASM-002): a user dict that is exactly {'__tinydb_date__': '<valid iso date>'} or {'__tinydb_datetime__': '<valid iso datetime>'} will come back as a date or datetime. This is a documented limitation, and a malformed look-alike is returned unchanged.",
+        "The on-disk format is no longer plain JSON for dates. External JSON tools see tagged objects (Q-002 option c is not met).",
+        "Aware datetimes come back with a fixed-offset datetime.timezone, not ZoneInfo or other tzinfo classes (ASM-003). DST semantics are lost.",
+        "datetime.fromisoformat on Python versions older than 3.11 only parses the output of isoformat(), which is all we write. This is fine, but pyproject's minimum Python version should be checked. Python 3.7+ is sufficient.",
+        "A user-supplied `default` kwarg must keep working as a fallback, and a user `cls` still receives our default. A `default` that handles datetime itself is shadowed by ours, and the tests should cover the fallback path.",
+        "Datetime or date used as a dict key is still unsupported, because json only allows str, int, float, bool and None keys. This is outside the spec.",
+        "Spec check: ASM-001 treats nested values as in scope, and the hooks cover this naturally. FR-JSON-005.AC-3 depends on equality of aware datetimes, which works across tzinfo classes."
+      ]
+    }
+  },
+  {
+    "type": "tool_result",
+    "is_error": null,
+    "content": "Structured output provided successfully"
+  }
+]

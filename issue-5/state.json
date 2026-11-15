@@ -21,8 +21,39 @@
       "run_url": "https://github.com/iDheer/tinydb/actions/runs/43717576958",
       "dir": "issue-5/run-43717576958-1",
       "passed_stages": []
+    },
+    {
+      "run_id": "43717905065",
+      "attempt": "1",
+      "mode": "start",
+      "round": 1,
+      "variant": "baseline",
+      "status": "pr-open",
+      "reason": "",
+      "cost_usd": 0.5431,
+      "tokens": {
+        "input_tokens": 56,
+        "output_tokens": 30371,
+        "cache_read_input_tokens": 395324,
+        "cache_creation_input_tokens": 87691
+      },
+      "run_url": "https://github.com/iDheer/tinydb/actions/runs/43717905065",
+      "dir": "issue-5/run-43717905065-1",
+      "passed_stages": [
+        "spec",
+        "design",
+        "implement",
+        "test",
+        "release"
+      ]
     }
   ],
   "round": 1,
-  "status": "needs-info"
+  "status": "pr-open",
+  "pr": 17,
+  "head_sha": "344a959580d4a05d88574e0b83ebb93287271c12",
+  "ci": {
+    "conclusion": "success",
+    "url": "https://github.com/iDheer/tinydb/actions/runs/43718396367"
+  }
 }
