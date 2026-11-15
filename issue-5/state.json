@@ -1,0 +1,28 @@
+{
+  "issue": 5,
+  "branch": "autose/issue-5",
+  "base_sha": "13eca00a7cd30db0b7ff133907f86a272618d869",
+  "runs": [
+    {
+      "run_id": "43717576958",
+      "attempt": "1",
+      "mode": "start",
+      "round": 1,
+      "variant": "baseline",
+      "status": "needs-info",
+      "reason": "stage 1: the issue needs answers from a maintainer: spec verdict is DRAFT (the issue does not yet define what to build); open P1 questions: Q-001, Q-002, Q-003; no READY MUST/SHOULD requirement; FR-DATE-001 is NEEDS-CLARIFICATION (core requirements must be READY); FR-DATE-001.AC-2: contains a <TBD> placeholder; FR-DATE-002 is NEEDS-CLARIFICATION (core requirements must be READY); FR-DATE-002.AC-2: contains a <TBD> placeholder; FR-DATE-003 is NEEDS-CLARIFICATION (core requirements must be READY); FR-DATE-003.AC-3: contains a <TBD> placeholder; CON-DATE-001 is NEEDS-CLARIFICATION (core requirements must be READY); CON-DATE-001.AC-1: contains a <TBD> placeholder",
+      "cost_usd": 0.1135,
+      "tokens": {
+        "input_tokens": 4,
+        "output_tokens": 10131,
+        "cache_read_input_tokens": 41098,
+        "cache_creation_input_tokens": 3219
+      },
+      "run_url": "https://github.com/iDheer/tinydb/actions/runs/43717576958",
+      "dir": "issue-5/run-43717576958-1",
+      "passed_stages": []
+    }
+  ],
+  "round": 1,
+  "status": "needs-info"
+}

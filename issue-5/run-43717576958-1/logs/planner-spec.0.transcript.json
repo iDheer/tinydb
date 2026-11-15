@@ -1,0 +1,432 @@
+[
+  {
+    "type": "text",
+    "text": "I'll check how the repository currently handles dates, so the acceptance criteria can name real behaviour."
+  },
+  {
+    "type": "tool_use",
+    "name": "Grep",
+    "input": {
+      "pattern": "datetime|isoformat|Serializer|json\\.dumps",
+      "path": "/home/runner/work/tinydb/tinydb/work/tinydb",
+      "output_mode": "content",
+      "head_limit": 40
+    }
+  },
+  {
+    "type": "tool_result",
+    "is_error": null,
+    "content": "tinydb/storages.py:147:        serialized = json.dumps(data, **self.kwargs)"
+  },
+  {
+    "type": "tool_use",
+    "name": "Grep",
+    "input": {
+      "pattern": "datetime|date",
+      "path": "/home/runner/work/tinydb/tinydb/work/docs",
+      "output_mode": "content",
+      "-i": true,
+      "head_limit": 30
+    }
+  },
+  {
+    "type": "tool_result",
+    "is_error": null,
+    "content": "docs/_themes/flask_theme_support.py:60:        Literal.Date: \"#000000\",  # class: 'ld'\ndocs/getting-started.rst:59:Next we'll update the ``count`` field of the apples:\ndocs/getting-started.rst:61:>>> db.update({'count': 10}, Fruit.type == 'apple')\ndocs/getting-started.rst:99:| ``db.update(fields, query)``  | Update all documents matching the query to contain ``fields`` |\ndocs/usage.rst:260:Next, let's look at some more ways to insert, update and retrieve data from\ndocs/usage.rst:296:Sometimes you want to update all documents in your database. In this case, you\ndocs/usage.rst:299:>>> db.update({'foo': 'bar'})\ndocs/usage.rst:301:When passing a dict to ``db.update(fields, query)``, it only allows you to\ndocs/usage.rst:302:update a document by adding or overwriting its values. But sometimes you may\ndocs/usage.rst:307:>>> db.update(delete('key1'), User.name == 'John')\ndocs/usage.rst:327:>>> db.update(your_operation(arguments), query)\ndocs/usage.rst:329:In order to perform multiple update operations at once, you can use the\ndocs/usage.rst:330:``update_multiple`` method like this:\ndocs/usage.rst:332:>>> db.update_multiple([\ndocs/usage.rst:337:You also can mix normal updates with update operations:\ndocs/usage.rst:339:>>> db.update_multiple([\ndocs/usage.rst:350:In some cases you'll need a mix of both ``update`` and ``insert``: ``upsert``.\ndocs/usage.rst:352:matching the query, they will be updated with the data from the provided document.\ndocs/usage.rst:358:This will update all users with the name John to have ``logged-in`` set to ``True``.\ndocs/usage.rst:423:| ``db.update(operation, ...)`` | Update all matching documents with a special operation        |\ndocs/usage.rst:467:Different TinyDB methods also work with IDs, namely: ``update``, ``remove``,\ndocs/usage.rst:470:>>> db.update({'value': 2}, doc_ids=[1, 2])\ndocs/usage.rst:529:| ``db.update({...}, doc_ids=[...])`` | Update all documents with the given IDs                    |\ndocs/usage.rst:605:   case the query cache may return outdated results. To clear the cache and\ndocs/api.rst:11:**supporting components** used internally for caching, updates, and query\ndocs/api.rst:44:4. For partial document updates, :mod:`tinydb.operations` provides helper\ndocs/api.rst:45:   callables that can be passed to :meth:`~tinydb.table.Table.update`.\ndocs/extensions.rst:78:                   TinyDB. It updates the query cache when\ndocs/extensions.rst:80:                   get invalidated. It's useful if you perform lots of queries\ndocs/conf.py:143:# If not '', a 'Last updated on:' timestamp is inserted at every page bottom,\n\n[Showing results with pagination = limit: 30]"
+  },
+  {
+    "type": "tool_use",
+    "name": "StructuredOutput",
+    "input": {
+      "title": "Better datetime support in TinyDB (issue #5)",
+      "summary": "The issue is a vague wish with no concrete behaviour, so the verdict is DRAFT. It names three pain points: converting dates to strings and back, hacky date comparison in queries, and wanting this \"out of the box\". It does not say which date types, whether the change is automatic or opt-in, what on-disk format to use, or how existing data and timezones are handled. The repo shows the current behaviour: `tinydb/storages.py:147` has `JSONStorage.write` call `json.dumps(data, **self.kwargs)` with no date handling, so inserting a `datetime` with the default storage should fail with a `TypeError`. Dates must therefore be hand-converted to strings, and queries can only compare them as strings. I did not run this. I wrote 3 stated functional requirements and 1 constraint, all NEEDS-CLARIFICATION, plus 2 candidate requirements. Three P1 questions should go to the maintainer first: type scope, where the feature lives, and how values are read back. Stakeholder mode is `unavailable` and no maintainer comments were supplied, so nothing is CONFIRMED. No tool-answerable questions exist (nothing public is named), so no tool calls were made. The issue contains no embedded instructions.",
+      "verdict": "DRAFT",
+      "requirements": [
+        {
+          "id": "FR-DATE-001",
+          "kind": "FR",
+          "statement": "The system shall accept a Python date/time value inside a document on insert without the caller first converting it to a string.",
+          "source": "STATED",
+          "source_quote": "I always end up converting things to strings and back myself",
+          "priority": "SHOULD",
+          "status": "NEEDS-CLARIFICATION",
+          "acceptance_criteria": [
+            {
+              "id": "FR-DATE-001.AC-1",
+              "given": "a TinyDB instance on a new temporary JSON file using the default storage",
+              "when": "db.insert({'when': datetime(2024, 1, 2, 3, 4, 5)}) is called",
+              "then": "no exception is raised and the file on disk contains valid JSON. Baseline today: json.dumps raises TypeError."
+            },
+            {
+              "id": "FR-DATE-001.AC-2",
+              "given": "a TinyDB instance on a new temporary JSON file using the default storage",
+              "when": "db.insert({'day': date(2024, 1, 2)}) is called",
+              "then": "<TBD: Q-001> (whether plain dates, times and timedeltas are in scope)"
+            }
+          ],
+          "links": [
+            "blocked by: Q-001, Q-002",
+            "related: Q-005, Q-008",
+            "TERM-001",
+            "TERM-003",
+            "GOAL-001"
+          ]
+        },
+        {
+          "id": "FR-DATE-002",
+          "kind": "FR",
+          "statement": "The system shall return a stored date/time value as a Python date/time object when the document is read back, without the caller converting it from a string.",
+          "source": "STATED",
+          "source_quote": "I always end up converting things to strings and back myself",
+          "priority": "SHOULD",
+          "status": "NEEDS-CLARIFICATION",
+          "acceptance_criteria": [
+            {
+              "id": "FR-DATE-002.AC-1",
+              "given": "a JSON file written by one TinyDB instance after insert({'when': datetime(2024, 1, 2, 3, 4, 5)})",
+              "when": "a new TinyDB instance opens the same file and db.all() is called",
+              "then": "db.all()[0]['when'] == datetime(2024, 1, 2, 3, 4, 5) and isinstance(..., datetime) is True"
+            },
+            {
+              "id": "FR-DATE-002.AC-2",
+              "given": "a document inserted with {'note': '2024-01-02T03:04:05'} (an ordinary string)",
+              "when": "the document is read back via db.all()",
+              "then": "<TBD: Q-003> (whether date-like strings stay strings or become datetime)"
+            }
+          ],
+          "links": [
+            "blocked by: Q-001, Q-002, Q-003",
+            "related: Q-005, Q-006",
+            "TERM-001",
+            "TERM-003"
+          ]
+        },
+        {
+          "id": "FR-DATE-003",
+          "kind": "FR",
+          "statement": "The system shall let a query compare a stored date/time field against a Python date/time value directly, without the caller converting either side to a string.",
+          "source": "STATED",
+          "source_quote": "comparing dates in queries feels hacky",
+          "priority": "SHOULD",
+          "status": "NEEDS-CLARIFICATION",
+          "acceptance_criteria": [
+            {
+              "id": "FR-DATE-003.AC-1",
+              "given": "a table holding three documents with 'when' set to datetime(2024, 1, 1), datetime(2024, 6, 1) and datetime(2024, 12, 1)",
+              "when": "db.search(Query().when > datetime(2024, 3, 1)) is called",
+              "then": "exactly the documents with datetime(2024, 6, 1) and datetime(2024, 12, 1) are returned"
+            },
+            {
+              "id": "FR-DATE-003.AC-2",
+              "given": "the same three documents",
+              "when": "db.search(Query().when == datetime(2024, 6, 1)) is called",
+              "then": "exactly the document with datetime(2024, 6, 1) is returned"
+            },
+            {
+              "id": "FR-DATE-003.AC-3",
+              "given": "the same three documents",
+              "when": "a range, date-only, or string-argument comparison is used",
+              "then": "<TBD: Q-004> (which comparison forms are required)"
+            }
+          ],
+          "links": [
+            "blocked by: Q-001, Q-002, Q-003, Q-004",
+            "related: Q-006",
+            "TERM-004"
+          ]
+        },
+        {
+          "id": "CON-DATE-001",
+          "kind": "CON",
+          "statement": "Date/time handling shall work 'out of the box' (the exact reading is open: automatic with the default storage, or opt-in via a bundled helper).",
+          "source": "STATED",
+          "source_quote": "Would be great if TinyDB handled dates better out of the box.",
+          "priority": "SHOULD",
+          "status": "NEEDS-CLARIFICATION",
+          "acceptance_criteria": [
+            {
+              "id": "CON-DATE-001.AC-1",
+              "given": "a TinyDB instance created with the setup that Q-002 defines as 'out of the box'",
+              "when": "a datetime is inserted and read back",
+              "then": "<TBD: Q-002> (required configuration, e.g. none versus one explicit argument)"
+            }
+          ],
+          "links": [
+            "blocked by: Q-002",
+            "TERM-003",
+            "GOAL-001"
+          ]
+        },
+        {
+          "id": "FR-DATE-004",
+          "kind": "FR",
+          "statement": "CANDIDATE (not agreed): The system shall keep reading existing database files that contain date strings written by earlier versions without raising an error.",
+          "source": "ASSUMED",
+          "source_quote": "",
+          "priority": "UNSET",
+          "status": "ASSUMPTION-ONLY",
+          "acceptance_criteria": [
+            {
+              "id": "FR-DATE-004.AC-1",
+              "given": "a JSON file containing {\"_default\": {\"1\": {\"when\": \"2024-01-02T03:04:05\"}}}",
+              "when": "TinyDB(path).all() is called",
+              "then": "one document with doc_id 1 is returned and no exception is raised"
+            }
+          ],
+          "links": [
+            "ASM-003",
+            "Q-005"
+          ]
+        },
+        {
+          "id": "FR-DATE-005",
+          "kind": "FR",
+          "statement": "CANDIDATE (not agreed): The system shall preserve the UTC offset of a timezone-aware datetime across a store and read-back round trip.",
+          "source": "ASSUMED",
+          "source_quote": "",
+          "priority": "UNSET",
+          "status": "NEEDS-CLARIFICATION",
+          "acceptance_criteria": [
+            {
+              "id": "FR-DATE-005.AC-1",
+              "given": "a stored document with 'when' = datetime(2024, 1, 2, 3, 4, 5, tzinfo=timezone.utc)",
+              "when": "the document is read back from a re-opened database file",
+              "then": "the value equals the original and its utcoffset() == timedelta(0)"
+            }
+          ],
+          "links": [
+            "blocked by: Q-006",
+            "ASM-004"
+          ]
+        }
+      ],
+      "terms": [
+        {
+          "id": "TERM-001",
+          "term": "dates",
+          "interpretations": [
+            "datetime.datetime only",
+            "datetime.date and datetime.datetime",
+            "date, time, datetime and timedelta",
+            "also timezone-aware values",
+            "also epoch numbers or ISO strings supplied by the caller"
+          ]
+        },
+        {
+          "id": "TERM-002",
+          "term": "better",
+          "interpretations": [
+            "no manual conversion needed for storage and retrieval",
+            "more convenient query syntax",
+            "all of these, plus timezone correctness and documentation"
+          ]
+        },
+        {
+          "id": "TERM-003",
+          "term": "out of the box",
+          "interpretations": [
+            "automatic in the default JSONStorage with no configuration",
+            "opt-in through a bundled middleware or storage option",
+            "a separate extension package",
+            "TinyDB core vs. a documented recipe only"
+          ]
+        },
+        {
+          "id": "TERM-004",
+          "term": "comparing dates in queries",
+          "interpretations": [
+            "<, <=, >, >=, == against datetime objects",
+            "range or between queries",
+            "date-only comparison on stored datetimes (same day)",
+            "comparison against ISO strings supplied by the caller",
+            "query helpers such as Query().field.after(...)"
+          ]
+        },
+        {
+          "id": "TERM-005",
+          "term": "hacky",
+          "interpretations": [
+            "requires manual string conversion on both sides",
+            "relies on ISO strings sorting lexicographically",
+            "requires a custom test() lambda"
+          ]
+        }
+      ],
+      "open_questions": [
+        {
+          "id": "Q-001",
+          "priority": "P1",
+          "question": "Which date/time types must be supported: datetime only, date and datetime, or also time and timedelta? Are timezone-aware values in scope?",
+          "why_it_matters": "Decides the scope of FR-DATE-001, 002 and 003 and the acceptance criteria that use specific types.",
+          "options": [
+            "(a) datetime only",
+            "(b) date and datetime",
+            "(c) date, time, datetime, timedelta",
+            "(d) any of the above, naive and timezone-aware"
+          ],
+          "proposed_default": "(b), recorded as ASM-002 (PROVISIONAL); it narrows 'dates' only if the maintainer wants times or timedeltas.",
+          "blocks": [
+            "FR-DATE-001",
+            "FR-DATE-002",
+            "FR-DATE-003"
+          ]
+        },
+        {
+          "id": "Q-002",
+          "priority": "P1",
+          "question": "What does 'out of the box' mean, and where should the feature live: automatic in the default JSONStorage, an opt-in option or middleware shipped in TinyDB, or only a documented recipe or extension? Does it apply to other storages (MemoryStorage, custom ones)?",
+          "why_it_matters": "Decides the user-facing mechanism and whether current behaviour changes by default. Blocks CON-DATE-001 and the storing and reading FRs.",
+          "options": [
+            "(a) automatic in default JSONStorage",
+            "(b) opt-in bundled middleware or storage argument",
+            "(c) separate extension or documentation only",
+            "(d) works with any storage"
+          ],
+          "proposed_default": "No default: maintainer decision required (design-level scope choice).",
+          "blocks": [
+            "CON-DATE-001",
+            "FR-DATE-001",
+            "FR-DATE-002",
+            "FR-DATE-003"
+          ]
+        },
+        {
+          "id": "Q-003",
+          "priority": "P1",
+          "question": "When reading, should stored date values be returned as Python date/time objects, and how should a string the user inserted that merely looks like a date be treated (left as string, or converted)?",
+          "why_it_matters": "Decides whether values round-trip as the same type and avoids silently changing user strings. Blocks FR-DATE-002 and FR-DATE-003 and affects FR-DATE-004.",
+          "options": [
+            "(a) only values that were inserted as date objects come back as date objects (a type marker is stored)",
+            "(b) any ISO-8601-looking string is converted on read",
+            "(c) values come back as strings and only queries understand dates"
+          ],
+          "proposed_default": "(a), recorded as ASM-005 (PROVISIONAL). It narrows 'converting back' to type-tagged values.",
+          "blocks": [
+            "FR-DATE-002",
+            "FR-DATE-003",
+            "FR-DATE-004"
+          ]
+        },
+        {
+          "id": "Q-004",
+          "priority": "P2",
+          "question": "Which query comparisons are required: <, <=, >, >=, == against date/time objects; ranges; same-day matching on a datetime; comparison against strings; or dedicated helper methods?",
+          "why_it_matters": "'Comparing dates in queries' has several readings (TERM-004); AC-3 of FR-DATE-003 cannot be written without it.",
+          "options": [
+            "(a) the standard comparison operators only",
+            "(b) operators plus a between/range helper",
+            "(c) also same-day or date-part matching",
+            "(d) also accept ISO strings as arguments"
+          ],
+          "proposed_default": "(a), recorded as ASM-006 (PROVISIONAL).",
+          "blocks": [
+            "FR-DATE-003"
+          ]
+        },
+        {
+          "id": "Q-005",
+          "priority": "P2",
+          "question": "What on-disk representation is required, and must existing database files that contain date strings stay readable and unchanged?",
+          "why_it_matters": "Decides backward compatibility and interoperability with other tools reading the JSON file.",
+          "options": [
+            "(a) ISO 8601 strings with a type marker",
+            "(b) plain ISO 8601 strings, no marker",
+            "(c) epoch numbers",
+            "(d) no constraint"
+          ],
+          "proposed_default": "No default: maintainer value needed. Existing files remaining readable is provisionally ASM-003.",
+          "blocks": [
+            "FR-DATE-004"
+          ]
+        },
+        {
+          "id": "Q-006",
+          "priority": "P2",
+          "question": "How should timezones be handled: preserved on round trip, normalised to UTC, or left naive? What should happen when a query compares a naive value with an aware one (Python raises TypeError)?",
+          "why_it_matters": "Affects correctness of reads and queries and FR-DATE-005.",
+          "options": [
+            "(a) preserve tzinfo and offset",
+            "(b) normalise to UTC",
+            "(c) naive only",
+            "(d) raise a clear error on mixing"
+          ],
+          "proposed_default": "(a), recorded as ASM-004 (PROVISIONAL).",
+          "blocks": [
+            "FR-DATE-005",
+            "FR-DATE-003"
+          ]
+        },
+        {
+          "id": "Q-007",
+          "priority": "P2",
+          "question": "Who has decision authority over scope: the maintainer, as the issue author? Is the issue author a maintainer?",
+          "why_it_matters": "There is a single requester, so this is not P1, but every question here needs an owner to answer it.",
+          "options": [
+            "(a) the repository maintainer decides",
+            "(b) another named person decides"
+          ],
+          "proposed_default": "(a), recorded as ASM-001 (PROVISIONAL).",
+          "blocks": []
+        },
+        {
+          "id": "Q-008",
+          "priority": "P3",
+          "question": "What should happen on a value that cannot be handled, and should the user documentation get examples?",
+          "why_it_matters": "Edge case and documentation refinement; blocks nothing yet (dimensions 3 and 12).",
+          "options": [
+            "(a) raise a TypeError as today",
+            "(b) a clearer error message",
+            "(c) docs update required, or not"
+          ],
+          "proposed_default": "(a) plus a docs example, recorded as ASSUMED with no requirement.",
+          "blocks": []
+        }
+      ],
+      "assumptions": [
+        {
+          "id": "ASM-001",
+          "text": "The issue author or repository maintainer is the decision owner and the only requester.",
+          "risk_if_wrong": "Answers to questions may come from the wrong person and have to be redone."
+        },
+        {
+          "id": "ASM-002",
+          "text": "'dates' includes at least datetime.datetime and datetime.date (provisional default for Q-001).",
+          "risk_if_wrong": "Wrong type scope leads to missing or excess behaviour for date, time and timedelta."
+        },
+        {
+          "id": "ASM-003",
+          "text": "Existing database files with date strings must continue to load unchanged.",
+          "risk_if_wrong": "Either a breaking change goes unnoticed, or needless compatibility work is done."
+        },
+        {
+          "id": "ASM-004",
+          "text": "Timezone-aware datetimes keep their UTC offset across a round trip.",
+          "risk_if_wrong": "Timezone data may be lost or normalised unexpectedly."
+        },
+        {
+          "id": "ASM-005",
+          "text": "Only values inserted as date objects come back as date objects; ordinary strings are never converted.",
+          "risk_if_wrong": "User strings may be silently converted, or date round trip may not work."
+        },
+        {
+          "id": "ASM-006",
+          "text": "Query support means the standard comparison operators against date/time objects.",
+          "risk_if_wrong": "Range or same-day queries expected by the author would be missing."
+        }
+      ],
+      "out_of_scope": [
+        "Choosing a design or implementation (middleware vs. storage subclass vs. query helpers, serialisation format)",
+        "Third-party extensions or other storage back-ends, unless Q-002 brings them into scope",
+        "Time-series or calendar features such as recurrence, durations arithmetic, indexing or sorting by date",
+        "Natural-language date parsing",
+        "Locale-specific date formatting",
+        "Migration tooling for existing database files (undetermined; see Q-005)"
+      ]
+    }
+  },
+  {
+    "type": "tool_result",
+    "is_error": null,
+    "content": "Structured output provided successfully"
+  }
+]
