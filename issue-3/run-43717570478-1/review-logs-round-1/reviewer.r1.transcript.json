@@ -1,0 +1,298 @@
+[
+  {
+    "type": "tool_use",
+    "name": "Bash",
+    "input": {
+      "command": "git diff 13eca00 --stat && cat ARCHITECTURE.md | head -80 && grep -n \"__getattr__\\|def search\" -A5 tinydb/database.py tinydb/table.py && sed -n 1,30p tinydb/table.py | grep -n import",
+      "description": "Inspect diff stats, architecture, and forwarding"
+    }
+  },
+  {
+    "type": "tool_result",
+    "is_error": true,
+    "content": "PreToolUse:Bash hook error: one plain command per call: no pipes, redirects, chaining or substitution"
+  },
+  {
+    "type": "tool_use",
+    "name": "Bash",
+    "input": {
+      "command": "git diff 13eca00 --stat",
+      "description": "Show diff stats against base"
+    }
+  },
+  {
+    "type": "tool_use",
+    "name": "Read",
+    "input": {
+      "file_path": "/home/runner/work/tinydb/tinydb/work/ARCHITECTURE.md"
+    }
+  },
+  {
+    "type": "tool_result",
+    "is_error": null,
+    "content": "1\t# TinyDB — Architecture\n2\t\n3\tTinyDB is a small, pure-Python, document-oriented database. A database is a single\n4\tPython `dict` of tables (`{table_name: {doc_id: document}}`) that is persisted as a\n5\twhole by a pluggable *storage*. All paths below are relative to the repository root.\n6\t\n7\t## 1. Overview of the main components\n8\t\n9\t| # | Component | File | What it does |\n10\t|---|-----------|------|--------------|\n11\t| 1 | **TinyDB** (database) | `tinydb/database.py` | Entry point. Instantiates the storage from `storage=` (default `JSONStorage`) with all remaining constructor arguments, creates and caches `Table` objects by name, and forwards unknown attributes (`insert`, `search`, …) to the default table `_default`. |\n12\t| 2 | **Table / Document** | `tinydb/table.py` | All document operations (insert, search, get, update, upsert, remove, truncate, count). Reads and writes the *whole* database through the storage, owns a per-table LRU **query cache**, and assigns integer document IDs. `Document` is a `dict` with a `doc_id`. |\n13\t| 3 | **Query / QueryInstance** | `tinydb/queries.py` | Query builder (`Query().field == 1`, `where('f')`). A query is a callable `doc -> bool` plus a **stable hash value** that describes it; queries combine with `&`, `\\|`, `~`. Defines the `QueryLike` protocol that `Table` accepts. |\n14\t| 4 | **Storages** | `tinydb/storages.py` | Abstract `Storage` (`read()` / `write(data)` / optional `close()`), plus `JSONStorage` (file on disk) and `MemoryStorage`. Serialisation lives here and only here. |\n15\t| 5 | **Middlewares** | `tinydb/middlewares.py` | Wrappers that look like a storage *class* to `TinyDB` and wrap a real storage, e.g. `CachingMiddleware`, which keeps the data in memory and writes it through every `WRITE_CACHE_SIZE` writes, on `flush()` or on `close()`. |\n16\t| 6 | **Operations** | `tinydb/operations.py` | Factory functions (`delete`, `add`, `set`, `increment`, …) that return callables mutating a document; passed to `Table.update`. |\n17\t| 7 | **Utils** | `tinydb/utils.py` | `LRUCache` (used as the query cache), `freeze`/`FrozenDict` (make query arguments hashable) and `with_typehint` (typing helper so `TinyDB` looks like a `Table` to IDEs). |\n18\t\n19\t`tinydb/mypy_plugin.py` is a type-checking helper only and is not used at runtime.\n20\t\n21\t**Who calls whom**\n22\t\n23\t- `TinyDB.__init__` calls `storage(*args, **kwargs)`. The result can be a storage or a\n24\t  middleware chain, and it is passed to every `Table` it creates.\n25\t- `Table` calls only `storage.read()` and `storage.write(data)`. It never knows which\n26\t  concrete storage or middleware it is talking to.\n27\t- `Table.search`/`get`/`update`/`remove` call query objects as plain callables and use\n28\t  them as keys in the `LRUCache` query cache. Every write goes through\n29\t  `Table._update_table`, which writes the whole data back and then clears the cache.\n30\t- `Query` uses `utils.freeze` to build hash values. It does not depend on tables or storages.\n31\t- A `Middleware` holds the wrapped storage in `self.storage` and forwards unknown\n32\t  attributes to it.\n33\t\n34\t```mermaid\n35\tflowchart LR\n36\t  User([user code]) --> TinyDB\n37\t  TinyDB -- \"storage(*args, **kwargs)\" --> MW[\"Middleware (optional)<br/>CachingMiddleware\"]\n38\t  MW -- wraps --> ST[\"Storage (ABC)<br/>JSONStorage / MemoryStorage\"]\n39\t  TinyDB -- \"creates / forwards to\" --> Table\n40\t  Table -- \"read() / write(whole dict)\" --> MW\n41\t  Table -- \"read() / write()\" -.-> ST\n42\t  Table -- \"calls cond(doc), uses hash as cache key\" --> Query[\"Query / QueryInstance\"]\n43\t  Table -- \"query cache\" --> LRU[\"utils.LRUCache\"]\n44\t  Table -- \"update(fields=...)\" --> Ops[\"operations\"]\n45\t  Query -- \"freeze() args for hashing\" --> Utils[\"utils.freeze / FrozenDict\"]\n46\t```\n47\t\n48\tImport layering (lower layers never import upper ones):\n49\t`utils` ← `queries`, `storages` ← `table` ← `database`; `middlewares` imports only `Storage`.\n50\t\n51\t## 2. Architecture decision records\n52\t\n53\t### ADR-1: Storages read and wr"
+  },
+  {
+    "type": "tool_result",
+    "is_error": false,
+    "content": " tests/test_autose_issue_3.py | 105 +++++++++++++++++++++++++++++++++++++++++++\n tinydb/table.py              |  45 +++++++++++++++----\n 2 files changed, 141 insertions(+), 9 deletions(-)"
+  },
+  {
+    "type": "tool_use",
+    "name": "Grep",
+    "input": {
+      "pattern": "__getattr__|def search|^from|^import|Optional",
+      "path": "/home/runner/work/tinydb/tinydb/work/tinydb",
+      "output_mode": "content"
+    }
+  },
+  {
+    "type": "tool_result",
+    "is_error": null,
+    "content": "tinydb/__init__.py:28:from .queries import Query, where\ntinydb/__init__.py:29:from .storages import Storage, JSONStorage\ntinydb/__init__.py:30:from .database import TinyDB\ntinydb/__init__.py:31:from .version import __version__\ntinydb/mypy_plugin.py:1:from collections.abc import Callable\ntinydb/mypy_plugin.py:2:from typing import TypeVar, Optional\ntinydb/mypy_plugin.py:4:from mypy.nodes import NameExpr\ntinydb/mypy_plugin.py:5:from mypy.options import Options\ntinydb/mypy_plugin.py:6:from mypy.plugin import Plugin, DynamicClassDefContext\ntinydb/mypy_plugin.py:9:CB = Optional[Callable[[T], None]]\ntinydb/operations.py:12:from collections.abc import Callable, MutableMapping\ntinydb/operations.py:13:from typing import Any, Union\ntinydb/queries.py:19:import re\ntinydb/queries.py:20:from collections.abc import Mapping, Callable, Sequence\ntinydb/queries.py:21:from typing import Any, Union, Optional, Protocol\ntinydb/queries.py:23:from .utils import freeze\ntinydb/queries.py:76:    def __init__(self, test: Callable[[Mapping], bool], hashval: Optional[tuple]):\ntinydb/queries.py:193:    def __getattr__(self, item: str):\ntinydb/queries.py:208:        # A different syntax for ``__getattr__``\ntinydb/queries.py:211:        # the name as a method name first, only then call our ``__getattr__``\ntinydb/queries.py:212:        # method. By calling ``__getattr__`` directly, we make sure that\ntinydb/queries.py:216:        return self.__getattr__(item)\ntinydb/queries.py:362:    def search(self, regex: str, flags: int = 0) -> QueryInstance:\ntinydb/queries.py:517:        Add a function to the query path. Similar to __getattr__ but for\ntinydb/table.py:6:from collections.abc import Callable, Iterable, Iterator, Mapping, MutableMapping\ntinydb/table.py:7:from typing import (\ntinydb/table.py:9:    Optional,\ntinydb/table.py:15:from .queries import QueryLike\ntinydb/table.py:16:from .storages import Storage\ntinydb/table.py:17:from .utils import LRUCache\ntinydb/table.py:110:        self._next_id: Optional[int] = None\ntinydb/table.py:249:    def search(\ntinydb/table.py:253:        limit: Optional[int] = None\ntinydb/table.py:332:    ) -> Optional[Document]: ...\ntinydb/table.py:337:    ) -> Optional[Document]: ...\ntinydb/table.py:341:        self, cond: Optional[QueryLike], doc_id: int, doc_ids: Optional[list] = ...\ntinydb/table.py:342:    ) -> Optional[Document]: ...\ntinydb/table.py:346:        self, *, cond: Optional[QueryLike] = ..., doc_id: int, doc_ids: Optional[list] = ...,\ntinydb/table.py:347:    ) -> Optional[Document]: ...\ntinydb/table.py:351:        self, cond: Optional[QueryLike], doc_id: None, doc_ids: list\ntinydb/table.py:356:        self, cond: Optional[QueryLike], *, doc_id: None = ..., doc_ids: list\ntinydb/table.py:361:        self, *, cond: Optional[QueryLike] = ..., doc_id: None = ..., doc_ids: list\ntinydb/table.py:366:        cond: Optional[QueryLike] = None,\ntinydb/table.py:367:        doc_id: Optional[int] = None,\ntinydb/table.py:368:        doc_ids: Optional[list] = None\ntinydb/table.py:432:        cond: Optional[QueryLike] = None,\ntinydb/table.py:433:        doc_id: Optional[int] = None\ntinydb/table.py:457:        cond: Optional[QueryLike] = None,\ntinydb/table.py:458:        doc_ids: Optional[Iterable[int]] = None,\ntinydb/table.py:610:    def upsert(self, document: Mapping, cond: Optional[QueryLike] = None) -> list[int]:\ntinydb/table.py:629:            doc_ids: Optional[list[int]] = [document.doc_id]\ntinydb/table.py:654:        cond: Optional[QueryLike] = None,\ntinydb/table.py:655:        doc_ids: Optional[Iterable[int]] = None,\ntinydb/storages.py:6:import io\ntinydb/storages.py:7:import json\ntinydb/storages.py:8:import os\ntinydb/storages.py:9:import warnings\ntinydb/storages.py:10:from abc import ABC, abstractmethod\ntinydb/storages.py:11:from typing import Any, Optional\ntinydb/storages.py:48:    def read(self) -> Optional[dict[str, dict[str, Any]]]:\ntinydb/storages.py:73:        Optional: Close open file handles, etc.\ntinydb/storages.py:125:    def"
+  },
+  {
+    "type": "tool_use",
+    "name": "Bash",
+    "input": {
+      "command": "python -m pytest -q",
+      "description": "Run full test suite"
+    }
+  },
+  {
+    "type": "tool_use",
+    "name": "Grep",
+    "input": {
+      "pattern": "\\.search\\(|_query_cache",
+      "path": "/home/runner/work/tinydb/tinydb/work/tinydb",
+      "output_mode": "content"
+    }
+  },
+  {
+    "type": "tool_result",
+    "is_error": false,
+    "content": "============================= test session starts ==============================\nplatform linux -- Python 3.12.16, pytest-9.2.0, pluggy-1.7.0\nrootdir: /home/runner/work/tinydb/tinydb/work\nconfigfile: pytest.ini\nplugins: cov-7.1.0, anyio-4.16.0\ncollected 239 items\n\ntests/test_autose_issue_3.py ...........                                 [  4%]\ntests/test_middlewares.py .........                                      [  8%]\ntests/test_operations.py ..............                                  [ 14%]\ntests/test_queries.py ..................................                 [ 28%]\ntests/test_storages.py ..............                                    [ 34%]\ntests/test_tables.py ...............................                     [ 47%]\ntests/test_tinydb.py ................................................... [ 68%]\n...............................................................          [ 94%]\ntests/test_utils.py ............                                         [100%]\n\n================================ tests coverage ================================\n_______________ coverage: platform linux, python 3.12.16-final-0 _______________\n\nName                    Stmts   Miss Branch BrPart  Cover\n---------------------------------------------------------\ntinydb/__init__.py          5      0      0      0   100%\ntinydb/database.py         53      0     10      0   100%\ntinydb/middlewares.py      44      3     14      3    90%\ntinydb/mypy_plugin.py      26     26      2      0     0%\ntinydb/operations.py       26      0      0      0   100%\ntinydb/queries.py         130      2     30      4    96%\ntinydb/storages.py         57      0      8      0   100%\ntinydb/table.py           255      4    118     11    96%\ntinydb/utils.py            78      1     18      1    98%\ntinydb/version.py           1      0      0      0   100%\n---------------------------------------------------------\nTOTAL                     675     36    200     19    93%\n============================= 239 passed in 1.49s =============================="
+  },
+  {
+    "type": "tool_result",
+    "is_error": null,
+    "content": "tinydb/__init__.py:16:>>> db.search(where('data') == 5)\ntinydb/__init__.py:24:>>> len(tbl.search(where('data') < 5))\ntinydb/queries.py:151:    >>> db.search(User.name == 'John Doe')\ntinydb/queries.py:152:    >>> db.search(User['logged-in'] == True)\ntinydb/queries.py:156:    >>> db.search(where('value') == True)\ntinydb/queries.py:165:    >>> db.search((where('field1').exists()) & (where('field2') == 5))\ntinydb/queries.py:167:    >>> db.search((where('field1').exists()) | (where('field2') == 5))\ntinydb/queries.py:367:        >>> Query().f1.search(r'^\\\\w+$')\ntinydb/queries.py:377:            return re.search(regex, value, flags) is not None\ntinydb/table.py:62:        - ``default_query_cache_capacity`` defines the default capacity of\ntinydb/table.py:92:    default_query_cache_capacity = 10\ntinydb/table.py:98:        cache_size: int = default_query_cache_capacity,\ntinydb/table.py:107:        self._query_cache: LRUCache[QueryLike, list[Document]] \\\ntinydb/table.py:287:        cached_results = self._query_cache.get(cond)\ntinydb/table.py:322:            self._query_cache[cond] = docs[:]\ntinydb/table.py:743:        return len(self.search(cond))\ntinydb/table.py:750:        self._query_cache.clear()"
+  },
+  {
+    "type": "tool_use",
+    "name": "Write",
+    "input": {
+      "file_path": "/home/runner/work/_temp/autose/review-scratch/probe_limit.py",
+      "content": "from tinydb import TinyDB, Query, where\nfrom tinydb.storages import MemoryStorage\n\n\ndef mk(n_err=15, n_info=10):\n    db = TinyDB(storage=MemoryStorage)\n    docs = []\n    for i in range(n_err + n_info):\n        docs.append({'n': i, 'level': 'error' if i % 2 == 0 or i >= 2 * n_info else 'info'})\n    db.insert_multiple(docs)\n    return db\n\n\ndb = mk()\nq = Query().level == 'error'\nfull = db.search(q)\nassert db.search(q, limit=10) == full[:10]\nassert [d.doc_id for d in db.search(q, limit=10)] == [d.doc_id for d in full[:10]]\nassert db.search(q, limit=0) == []\nassert db.search(q, limit=10**6) == full\nassert db.search(q, limit=None) == full\n\n# cold limited then full (cache not poisoned)\ndb2 = mk()\nassert len(db2.search(q, limit=3)) == 3\nassert db2.search(q) == full\n# mutate limited result from cache does not affect cache list\nr = db2.search(q, limit=3)\nr.clear()\nassert db2.search(q) == full\n\n# early stop: count calls\ncalls = []\ndef f(d):\n    calls.append(1)\n    return True\ndb3 = mk(0, 0)\ndb3.insert_multiple({'x': i} for i in range(100))\nres = db3.search(Query().x.test(lambda v: (calls.append(1) or True)), limit=5)\nassert len(res) == 5, res\nassert len(calls) == 5, len(calls)\n\n# uncacheable query\nmq = Query().map(lambda d: d).level == 'error'\nassert len(db.search(mq, limit=4)) == 4\nassert len(db.search(mq)) == len(full)\n\n# plain function cond\nassert len(db.search(lambda d: d['level'] == 'error', limit=2)) == 2\n\n# errors\nfor bad, exc in [(-1, ValueError), (True, TypeError), (1.5, TypeError), ('3', TypeError)]:\n    try:\n        db.search(q, limit=bad)\n    except exc:\n        pass\n    else:\n        raise AssertionError(bad)\n\n# positional still works for cond; count unaffected\nassert db.count(q) == len(full)\n\n# Table via db.table too, and after writes cache cleared\nt = db.table('_default')\nt.insert({'level': 'error', 'n': 999})\nassert len(t.search(q)) == len(full) + 1\nassert t.search(q, limit=1)[0]['n'] == full[0]['n']\n\n# JSON storage\nimport tempfile, os\np = os.path.join(tempfile.mkdtemp(), 'db.json')\njdb = TinyDB(p)\njdb.insert_multiple({'level': 'error', 'n': i} for i in range(20))\nassert [d['n'] for d in jdb.search(q, limit=3)] == [0, 1, 2]\njdb.close()\nprint('ALL PROBES OK')\n"
+    }
+  },
+  {
+    "type": "tool_result",
+    "is_error": null,
+    "content": "File created successfully at: /home/runner/work/_temp/autose/review-scratch/probe_limit.py (file state is current in your context — no need to Read it back)"
+  },
+  {
+    "type": "tool_use",
+    "name": "Bash",
+    "input": {
+      "command": "python /home/runner/work/_temp/autose/review-scratch/probe_limit.py",
+      "description": "Run review probe script"
+    }
+  },
+  {
+    "type": "tool_result",
+    "is_error": true,
+    "content": "Exit code 1\nTraceback (most recent call last):\n  File \"/home/runner/work/_temp/autose/review-scratch/probe_limit.py\", line 1, in <module>\n    from tinydb import TinyDB, Query, where\nModuleNotFoundError: No module named 'tinydb'"
+  },
+  {
+    "type": "text",
+    "text": "The full suite passes (239 tests). My probe script couldn't import `tinydb` from the scratch directory, so I'm running it again with the repo on the path."
+  },
+  {
+    "type": "tool_use",
+    "name": "Bash",
+    "input": {
+      "command": "env PYTHONPATH=/home/runner/work/tinydb/tinydb/work python /home/runner/work/_temp/autose/review-scratch/probe_limit.py",
+      "description": "Run probe with repo on Python path"
+    }
+  },
+  {
+    "type": "tool_result",
+    "is_error": true,
+    "content": "PreToolUse:Bash hook error: command not allowlisted for the reviewer: allowed are python -m pytest/compileall/mypy, python -c, git diff/status/log, ls"
+  },
+  {
+    "type": "tool_use",
+    "name": "Bash",
+    "input": {
+      "command": "python -c \"import sys; sys.path.insert(0, '.'); sys.argv=['probe']; exec(open('/home/runner/work/_temp/autose/review-scratch/probe_limit.py').read())\"",
+      "description": "Run probe via python -c with repo on path"
+    }
+  },
+  {
+    "type": "tool_result",
+    "is_error": true,
+    "content": "PreToolUse:Bash hook error: one plain command per call: no pipes, redirects, chaining or substitution"
+  },
+  {
+    "type": "tool_use",
+    "name": "Bash",
+    "input": {
+      "command": "python -m pytest -q -p no:cacheprovider --no-cov -s /home/runner/work/_temp/autose/review-scratch/probe_limit.py",
+      "description": "Run probe through pytest so repo is importable"
+    }
+  },
+  {
+    "type": "tool_result",
+    "is_error": true,
+    "content": "Exit code 5\nALL PROBES OK\n\nno tests ran in 0.02s"
+  },
+  {
+    "type": "text",
+    "text": "The probe passed: it printed `ALL PROBES OK`. Exit code 5 only means pytest found no test functions; the checks ran when the module was imported. Last, a type check on the changed module."
+  },
+  {
+    "type": "tool_use",
+    "name": "Bash",
+    "input": {
+      "command": "python -m mypy tinydb/table.py",
+      "description": "Type-check changed module"
+    }
+  },
+  {
+    "type": "tool_result",
+    "is_error": false,
+    "content": "Success: no issues found in 1 source file"
+  },
+  {
+    "type": "tool_use",
+    "name": "Bash",
+    "input": {
+      "command": "ls docs",
+      "description": "Check for documentation directory"
+    }
+  },
+  {
+    "type": "tool_result",
+    "is_error": false,
+    "content": "Makefile\n_static\n_templates\n_themes\napi.rst\nchangelog.rst\nconf.py\ncontribute.rst\nextend.rst\nextensions.rst\ngetting-started.rst\nindex.rst\nintro.rst\nmake.bat\nupgrade.rst\nusage.rst"
+  },
+  {
+    "type": "tool_use",
+    "name": "StructuredOutput",
+    "input": {
+      "issue_requirements": [
+        "Table.search() (and db.search() through forwarding to the default table) accepts an optional `limit` argument, used as `db.search(q, limit=10)`.",
+        "With `limit=N`, return at most N matching documents.",
+        "Limited results come in the same order as today's unlimited search(), so they equal search(q)[:N], including doc_ids.",
+        "Implied: avoid building the full result list when a limit is given (stop scanning early), which is the performance reason for the issue.",
+        "Without `limit` (or with limit=None), search() behaves exactly as before: all matches, a fresh list each call, query caching unchanged.",
+        "Implied: the query cache stays correct. A truncated result must not be cached as if it were complete, and a cached full result must be sliced correctly.",
+        "Implied: existing tests still pass and ARCHITECTURE.md constraints C1-C5 hold (no storage writes outside _update_table, import layering kept, no third-party deps)."
+      ],
+      "requirement_checks": [
+        {
+          "requirement": "search() accepts optional limit; db.search forwards it",
+          "met": "yes",
+          "evidence": "tinydb/table.py:249-254 adds keyword-only `limit: Optional[int] = None`. TinyDB.__getattr__ (tinydb/database.py:251) forwards to the table. test_fr_search_001_ac_4_db_forwarding passes, and so does the probe line `db.search(q, limit=10)`."
+        },
+        {
+          "requirement": "At most N matching documents returned",
+          "met": "yes",
+          "evidence": "Probe: limit=10 on 20 matches gives 10, limit=10**6 gives all matches, limit=0 gives []. The PR tests ac_1/ac_2/ac_3 pass."
+        },
+        {
+          "requirement": "Same order as unlimited search",
+          "met": "yes",
+          "evidence": "Probe asserts `db.search(q, limit=10) == full[:10]` and that the doc_id lists are equal, on both cold and warm cache. test_fr_search_002_ac_1/ac_2 pass."
+        },
+        {
+          "requirement": "Scan stops early when limit reached",
+          "met": "yes",
+          "evidence": "tinydb/table.py loop breaks when `len(docs) >= limit`. Probe: on a 100-doc table with a counting test() query, limit=5 made exactly 5 condition calls."
+        },
+        {
+          "requirement": "Without limit, behaviour unchanged",
+          "met": "yes",
+          "evidence": "The unlimited path still caches `docs[:]` and returns `docs`; a cache hit returns `cached_results[:None]`, a full copy. Full suite: 239 passed. test_fr_search_003_* pass. Probe: limit=None equals the plain search."
+        },
+        {
+          "requirement": "Query cache correctness (truncated results not cached; cached results sliced)",
+          "met": "yes",
+          "evidence": "`if is_cacheable() and not truncated` (table.py ~line 320). Probe: cold limit=3 followed by a full search returns all matches. Clearing a limited result taken from the cache leaves later results intact. An uncacheable map() query works with and without limit. After an insert, the cache invalidates and the limited result is correct."
+        },
+        {
+          "requirement": "Existing behaviour/tests pass; C1-C5 hold",
+          "met": "yes",
+          "evidence": "`python -m pytest -q`: 239 passed. `python -m mypy tinydb/table.py`: no issues. The diff touches only Table.search: no new imports, no storage writes, no dependencies. count() (table.py:743) calls search(cond) and is unaffected."
+        }
+      ],
+      "findings": [
+        {
+          "severity": "minor",
+          "category": "tests",
+          "file": "tests/test_autose_issue_3.py",
+          "line": 1,
+          "description": "The new tests don't cover the argument validation the PR adds (TypeError for non-int or bool, ValueError for negative), the limit=0 shortcut, or the early-stop property that motivates the issue. My probe confirms all of these work, but no regression test protects them.",
+          "evidence": "The test file has no `pytest.raises` and no `limit=0` case. The table.py docstring documents `:raises TypeError` and `:raises ValueError`.",
+          "suggested_fix": "Add tests for limit=-1 (ValueError), limit=True/1.5 (TypeError), limit=0 returning [], and a counting-condition test asserting the scan stops after N matches."
+        },
+        {
+          "severity": "nit",
+          "category": "scope",
+          "file": "docs/usage.rst",
+          "line": 1,
+          "description": "The user docs don't mention the new `limit` argument. Only the docstring does.",
+          "evidence": "The diff touches only tinydb/table.py and the test file. docs/usage.rst exists and documents search().",
+          "suggested_fix": "Add a short note on `search(cond, limit=N)` to docs/usage.rst and the changelog."
+        },
+        {
+          "severity": "nit",
+          "category": "code",
+          "file": "tinydb/table.py",
+          "line": 278,
+          "description": "The strict `isinstance(limit, int)` check rejects int-like objects such as numpy integers or anything with __index__. This is defensible, but `operator.index()` would be more idiomatic.",
+          "evidence": "`if isinstance(limit, bool) or not isinstance(limit, int): raise TypeError`",
+          "suggested_fix": "Optionally use `limit = operator.index(limit)` (stdlib) while still rejecting bool."
+        }
+      ],
+      "checks_run": [
+        {
+          "command": "python -m pytest -q",
+          "result": "239 passed in 1.49s (includes 11 new tests); table.py coverage 96%"
+        },
+        {
+          "command": "python -m pytest -q -p no:cacheprovider --no-cov -s /home/runner/work/_temp/autose/review-scratch/probe_limit.py",
+          "result": "Module-level probe printed 'ALL PROBES OK'. Exit 5 only because the file has no test functions. Covered: order and doc_ids vs full[:N], limit=0/None/huge, cold-limited then full, mutating a cached-limited result, early stop (5 cond calls for limit=5 of 100), uncacheable map() query, lambda cond, TypeError/ValueError cases, cache invalidation after insert, JSONStorage."
+        },
+        {
+          "command": "python -m mypy tinydb/table.py",
+          "result": "Success: no issues found in 1 source file"
+        },
+        {
+          "command": "git diff 13eca00 --stat",
+          "result": "Only tests/test_autose_issue_3.py (+105) and tinydb/table.py (+36/-9) changed"
+        }
+      ],
+      "risks_considered": [
+        "Cache poisoning: a truncated result cached as complete, which would make later unlimited searches short. Prevented by the `not truncated` guard; probed.",
+        "A limited result from a cache hit sharing the list object with the cache. The slice makes a new list; probed with clear().",
+        "An exact-N match count sets truncated=True and skips caching. This is a harmless missed cache opportunity, not a correctness issue.",
+        "Document objects in cached results are shared, the same as before the change (pre-existing; the docstring already warns).",
+        "Positional callers: limit is keyword-only, so existing positional `search(cond)` calls and count() are unaffected.",
+        "Uncacheable queries (map()) and plain callables as cond work with limit.",
+        "bool accepted as int (True == 1): explicitly rejected.",
+        "ARCHITECTURE constraints: no storage writes, no new imports or deps, layering unchanged.",
+        "The issue text contained no embedded instructions to follow or ignore."
+      ],
+      "verdict": "approve",
+      "route": "none",
+      "summary": "I found no reason to block this PR. It adds a keyword-only `limit` argument to `Table.search()`, and `db.search()` passes it through to the default table. The result is the same as `search(q)[:N]`, in the same order with the same doc_ids. The scan stops after N matches, a truncated result is never cached, and searches without a limit behave as before. The full suite passes (239 tests), mypy finds no issues in `tinydb/table.py`, and my own probe confirmed order, early stop, cache safety, uncacheable queries, input validation and JSONStorage. There are only minor gaps: the new tests don't cover input validation, `limit=0` or early stop, and `docs/usage.rst` doesn't mention `limit`."
+    }
+  },
+  {
+    "type": "tool_result",
+    "is_error": null,
+    "content": "Structured output provided successfully"
+  }
+]

@@ -1,0 +1,267 @@
+{
+  "label": "reviewer.r1",
+  "role": "reviewer",
+  "ok": true,
+  "cost_usd": 0.25016,
+  "usage": {
+    "input_tokens": 22,
+    "cache_creation_input_tokens": 16332,
+    "cache_read_input_tokens": 202144,
+    "output_tokens": 6399,
+    "output_tokens_details": {
+      "thinking_tokens": 893
+    },
+    "server_tool_use": {
+      "web_search_requests": 0,
+      "web_fetch_requests": 0
+    },
+    "service_tier": "standard",
+    "cache_creation": {
+      "ephemeral_1h_input_tokens": 0,
+      "ephemeral_5m_input_tokens": 16332
+    },
+    "inference_geo": "global",
+    "iterations": [],
+    "speed": "standard",
+    "fallback_credit": null
+  },
+  "num_turns": 15,
+  "duration_s": 77.3,
+  "error": "",
+  "denials": 3,
+  "model": "claude-opus-5-5",
+  "tool_calls": [
+    {
+      "tool": "Bash",
+      "args": {
+        "command": "git diff 13eca00 --stat && cat ARCHITECTURE.md | head -80 && grep -n \"__getattr__\\|def search\" -A5 tinydb/database.py tinydb/table.py && sed -n 1,30p tinydb/table.py | grep -n import",
+        "description": "Inspect diff stats, architecture, and forwarding"
+      },
+      "allowed": false,
+      "reason": "one plain command per call: no pipes, redirects, chaining or substitution"
+    },
+    {
+      "tool": "Bash",
+      "args": {
+        "command": "git diff 13eca00 --stat",
+        "description": "Show diff stats against base"
+      },
+      "allowed": true,
+      "reason": "allowlisted command"
+    },
+    {
+      "tool": "Read",
+      "args": {
+        "file_path": "/home/runner/work/tinydb/tinydb/work/ARCHITECTURE.md"
+      },
+      "allowed": true,
+      "reason": "read inside working tree"
+    },
+    {
+      "tool": "Grep",
+      "args": {
+        "pattern": "__getattr__|def search|^from|^import|Optional",
+        "path": "/home/runner/work/tinydb/tinydb/work/tinydb",
+        "output_mode": "content"
+      },
+      "allowed": true,
+      "reason": "read inside working tree"
+    },
+    {
+      "tool": "Bash",
+      "args": {
+        "command": "python -m pytest -q",
+        "description": "Run full test suite"
+      },
+      "allowed": true,
+      "reason": "allowlisted command"
+    },
+    {
+      "tool": "Grep",
+      "args": {
+        "pattern": "\\.search\\(|_query_cache",
+        "path": "/home/runner/work/tinydb/tinydb/work/tinydb",
+        "output_mode": "content"
+      },
+      "allowed": true,
+      "reason": "read inside working tree"
+    },
+    {
+      "tool": "Write",
+      "args": {
+        "file_path": "/home/runner/work/_temp/autose/review-scratch/probe_limit.py",
+        "content": "from tinydb import TinyDB, Query, where\nfrom tinydb.storages import MemoryStorage\n\n\ndef mk(n_err=15, n_info=10):\n    db = TinyDB(storage=MemoryStorage)\n    docs = []\n    for i in range(n_err + n_info):\n        docs.append({'n': i, 'level': 'error' if i % 2 == 0 or i >= 2 * n_info else 'info'})\n    d…"
+      },
+      "allowed": true,
+      "reason": "scratch write"
+    },
+    {
+      "tool": "Bash",
+      "args": {
+        "command": "python /home/runner/work/_temp/autose/review-scratch/probe_limit.py",
+        "description": "Run review probe script"
+      },
+      "allowed": true,
+      "reason": "reviewer probe script in scratch"
+    },
+    {
+      "tool": "Bash",
+      "args": {
+        "command": "env PYTHONPATH=/home/runner/work/tinydb/tinydb/work python /home/runner/work/_temp/autose/review-scratch/probe_limit.py",
+        "description": "Run probe with repo on Python path"
+      },
+      "allowed": false,
+      "reason": "command not allowlisted for the reviewer: allowed are python -m pytest/compileall/mypy, python -c, git diff/status/log, ls"
+    },
+    {
+      "tool": "Bash",
+      "args": {
+        "command": "python -c \"import sys; sys.path.insert(0, '.'); sys.argv=['probe']; exec(open('/home/runner/work/_temp/autose/review-scratch/probe_limit.py').read())\"",
+        "description": "Run probe via python -c with repo on path"
+      },
+      "allowed": false,
+      "reason": "one plain command per call: no pipes, redirects, chaining or substitution"
+    },
+    {
+      "tool": "Bash",
+      "args": {
+        "command": "python -m pytest -q -p no:cacheprovider --no-cov -s /home/runner/work/_temp/autose/review-scratch/probe_limit.py",
+        "description": "Run probe through pytest so repo is importable"
+      },
+      "allowed": true,
+      "reason": "allowlisted command"
+    },
+    {
+      "tool": "Bash",
+      "args": {
+        "command": "python -m mypy tinydb/table.py",
+        "description": "Type-check changed module"
+      },
+      "allowed": true,
+      "reason": "allowlisted command"
+    },
+    {
+      "tool": "Bash",
+      "args": {
+        "command": "ls docs",
+        "description": "Check for documentation directory"
+      },
+      "allowed": true,
+      "reason": "allowlisted command"
+    },
+    {
+      "tool": "StructuredOutput",
+      "args": {
+        "issue_requirements": [
+          "Table.search() (and db.search() through forwarding to the default table) accepts an optional `limit` argument, used as `db.search(q, limit=10)`.",
+          "With `limit=N`, return at most N matching documents.",
+          "Limited results come in the same order as today's unlimited search(), so they equal search(q)[:N], including doc_ids.",
+          "Implied: avoid building the full result list when a limit is given (stop scanning early), which is the performance reason for the issue.",
+          "Without `limit` (or with limit=None), search() behaves exactly as before: all matches, a fresh list each call, query caching unchanged.",
+          "Implied: the query cache stays correct. A truncated result must not be cached as if it were complete, and a cached full result must be sliced correctly.",
+          "Implied: existing tests still pass and ARCHITECTURE.md constraints C1-C5 hold (no storage writes outside _update_table, import layering kept, no third-party deps)."
+        ],
+        "requirement_checks": [
+          {
+            "requirement": "search() accepts optional limit; db.search forwards it",
+            "met": "yes",
+            "evidence": "tinydb/table.py:249-254 adds keyword-only `limit: Optional[int] = None`. TinyDB.__getattr__ (tinydb/database.py:251) forwards to the table. test_fr_search_001_ac_4_db_forwarding passes, and so does the probe line `db.search(q, limit=10)`."
+          },
+          {
+            "requirement": "At most N matching documents returned",
+            "met": "yes",
+            "evidence": "Probe: limit=10 on 20 matches gives 10, limit=10**6 gives all matches, limit=0 gives []. The PR tests ac_1/ac_2/ac_3 pass."
+          },
+          {
+            "requirement": "Same order as unlimited search",
+            "met": "yes",
+            "evidence": "Probe asserts `db.search(q, limit=10) == full[:10]` and that the doc_id lists are equal, on both cold and warm cache. test_fr_search_002_ac_1/ac_2 pass."
+          },
+          {
+            "requirement": "Scan stops early when limit reached",
+            "met": "yes",
+            "evidence": "tinydb/table.py loop breaks when `len(docs) >= limit`. Probe: on a 100-doc table with a counting test() query, limit=5 made exactly 5 condition calls."
+          },
+          {
+            "requirement": "Without limit, behaviour unchanged",
+            "met": "yes",
+            "evidence": "The unlimited path still caches `docs[:]` and returns `docs`; a cache hit returns `cached_results[:None]`, a full copy. Full suite: 239 passed. test_fr_search_003_* pass. Probe: limit=None equals the plain search."
+          },
+          {
+            "requirement": "Query cache correctness (truncated results not cached; cached results sliced)",
+            "met": "yes",
+            "evidence": "`if is_cacheable() and not truncated` (table.py ~line 320). Probe: cold limit=3 followed by a full search returns all matches. Clearing a limited result taken from the cache leaves later results intact. An uncacheable map() query works with and without limit. After an insert, the cache invalidates and the limited result is correct."
+          },
+          {
+            "requirement": "Existing behaviour/tests pass; C1-C5 hold",
+            "met": "yes",
+            "evidence": "`python -m pytest -q`: 239 passed. `python -m mypy tinydb/table.py`: no issues. The diff touches only Table.search: no new imports, no storage writes, no dependencies. count() (table.py:743) calls search(cond) and is unaffected."
+          }
+        ],
+        "findings": [
+          {
+            "severity": "minor",
+            "category": "tests",
+            "file": "tests/test_autose_issue_3.py",
+            "line": 1,
+            "description": "The new tests don't cover the argument validation the PR adds (TypeError for non-int or bool, ValueError for negative), the limit=0 shortcut, or the early-stop property that motivates the issue. My probe confirms all of these work, but no regression test protects them.",
+            "evidence": "The test file has no `pytest.raises` and no `limit=0` case. The table.py docstring documents `:raises TypeError` and `:raises ValueError`.",
+            "suggested_fix": "Add tests for limit=-1 (ValueError), limit=True/1.5 (TypeError), limit=0 returning [], and a counting-condition test asserting the scan stops after N matches."
+          },
+          {
+            "severity": "nit",
+            "category": "scope",
+            "file": "docs/usage.rst",
+            "line": 1,
+            "description": "The user docs don't mention the new `limit` argument. Only the docstring does.",
+            "evidence": "The diff touches only tinydb/table.py and the test file. docs/usage.rst exists and documents search().",
+            "suggested_fix": "Add a short note on `search(cond, limit=N)` to docs/usage.rst and the changelog."
+          },
+          {
+            "severity": "nit",
+            "category": "code",
+            "file": "tinydb/table.py",
+            "line": 278,
+            "description": "The strict `isinstance(limit, int)` check rejects int-like objects such as numpy integers or anything with __index__. This is defensible, but `operator.index()` would be more idiomatic.",
+            "evidence": "`if isinstance(limit, bool) or not isinstance(limit, int): raise TypeError`",
+            "suggested_fix": "Optionally use `limit = operator.index(limit)` (stdlib) while still rejecting bool."
+          }
+        ],
+        "checks_run": [
+          {
+            "command": "python -m pytest -q",
+            "result": "239 passed in 1.49s (includes 11 new tests); table.py coverage 96%"
+          },
+          {
+            "command": "python -m pytest -q -p no:cacheprovider --no-cov -s /home/runner/work/_temp/autose/review-scratch/probe_limit.py",
+            "result": "Module-level probe printed 'ALL PROBES OK'. Exit 5 only because the file has no test functions. Covered: order and doc_ids vs full[:N], limit=0/None/huge, cold-limited then full, mutating a cached-limited result, early stop (5 cond calls for limit=5 of 100), uncacheable map() query, lambda cond, TypeError/ValueError cases, cache invalidation after insert, JSONStorage."
+          },
+          {
+            "command": "python -m mypy tinydb/table.py",
+            "result": "Success: no issues found in 1 source file"
+          },
+          {
+            "command": "git diff 13eca00 --stat",
+            "result": "Only tests/test_autose_issue_3.py (+105) and tinydb/table.py (+36/-9) changed"
+          }
+        ],
+        "risks_considered": [
+          "Cache poisoning: a truncated result cached as complete, which would make later unlimited searches short. Prevented by the `not truncated` guard; probed.",
+          "A limited result from a cache hit sharing the list object with the cache. The slice makes a new list; probed with clear().",
+          "An exact-N match count sets truncated=True and skips caching. This is a harmless missed cache opportunity, not a correctness issue.",
+          "Document objects in cached results are shared, the same as before the change (pre-existing; the docstring already warns).",
+          "Positional callers: limit is keyword-only, so existing positional `search(cond)` calls and count() are unaffected.",
+          "Uncacheable queries (map()) and plain callables as cond work with limit.",
+          "bool accepted as int (True == 1): explicitly rejected.",
+          "ARCHITECTURE constraints: no storage writes, no new imports or deps, layering unchanged.",
+          "The issue text contained no embedded instructions to follow or ignore."
+        ],
+        "verdict": "approve",
+        "route": "none",
+        "summary": "I found no reason to block this PR. It adds a keyword-only `limit` argument to `Table.search()`, and `db.search()` passes it through to the default table. The result is the same as `search(q)[:N]`, in the same order with the same doc_ids. The scan stops after N matches, a truncated result is never c…"
+      },
+      "allowed": true,
+      "reason": "final structured answer"
+    }
+  ]
+}

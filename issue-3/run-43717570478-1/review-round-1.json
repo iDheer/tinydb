@@ -1,0 +1,78 @@
+{
+  "pr": 15,
+  "issue": 3,
+  "round": 1,
+  "raw_verdict": "approve",
+  "verdict": "approve",
+  "route": "none",
+  "overrides": [],
+  "findings": [
+    {
+      "severity": "minor",
+      "category": "tests",
+      "file": "tests/test_autose_issue_3.py",
+      "line": 1,
+      "description": "The new tests don't cover the argument validation the PR adds (TypeError for non-int or bool, ValueError for negative), the limit=0 shortcut, or the early-stop property that motivates the issue. My probe confirms all of these work, but no regression test protects them.",
+      "evidence": "The test file has no `pytest.raises` and no `limit=0` case. The table.py docstring documents `:raises TypeError` and `:raises ValueError`.",
+      "suggested_fix": "Add tests for limit=-1 (ValueError), limit=True/1.5 (TypeError), limit=0 returning [], and a counting-condition test asserting the scan stops after N matches."
+    },
+    {
+      "severity": "nit",
+      "category": "scope",
+      "file": "docs/usage.rst",
+      "line": 1,
+      "description": "The user docs don't mention the new `limit` argument. Only the docstring does.",
+      "evidence": "The diff touches only tinydb/table.py and the test file. docs/usage.rst exists and documents search().",
+      "suggested_fix": "Add a short note on `search(cond, limit=N)` to docs/usage.rst and the changelog."
+    },
+    {
+      "severity": "nit",
+      "category": "code",
+      "file": "tinydb/table.py",
+      "line": 278,
+      "description": "The strict `isinstance(limit, int)` check rejects int-like objects such as numpy integers or anything with __index__. This is defensible, but `operator.index()` would be more idiomatic.",
+      "evidence": "`if isinstance(limit, bool) or not isinstance(limit, int): raise TypeError`",
+      "suggested_fix": "Optionally use `limit = operator.index(limit)` (stdlib) while still rejecting bool."
+    }
+  ],
+  "executed": [
+    "git diff 13eca00 --stat",
+    "python -m pytest -q",
+    "python /home/runner/work/_temp/autose/review-scratch/probe_limit.py",
+    "python -m pytest -q -p no:cacheprovider --no-cov -s /home/runner/work/_temp/autose/review-scratch/probe_limit.py",
+    "python -m mypy tinydb/table.py",
+    "ls docs"
+  ],
+  "meta": {
+    "model": "claude-opus-5-5",
+    "cost_usd": 0.25015679999999996,
+    "num_turns": 15,
+    "usage": {
+      "input_tokens": 22,
+      "cache_creation_input_tokens": 16332,
+      "cache_read_input_tokens": 202144,
+      "output_tokens": 6399,
+      "output_tokens_details": {
+        "thinking_tokens": 893
+      },
+      "server_tool_use": {
+        "web_search_requests": 0,
+        "web_fetch_requests": 0
+      },
+      "service_tier": "standard",
+      "cache_creation": {
+        "ephemeral_1h_input_tokens": 0,
+        "ephemeral_5m_input_tokens": 16332
+      },
+      "inference_geo": "global",
+      "iterations": [],
+      "speed": "standard",
+      "fallback_credit": null
+    },
+    "variant": "baseline",
+    "ok": true,
+    "error": ""
+  },
+  "variant": "baseline",
+  "head_sha": "ac8496bad1b7423333f6da3bedd9eab466f39248"
+}
