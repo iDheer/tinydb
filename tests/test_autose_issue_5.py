@@ -122,9 +122,21 @@ def test_fr_json_005_ac_3_aware_equality_query(tmp_path):
 
 
 def test_con_001_ac_1_no_runtime_dependencies():
-    import tomllib
-    data = tomllib.loads((ROOT / 'pyproject.toml').read_text())
-    assert not data.get('project', {}).get('dependencies')
+    try:
+        import tomllib
+    except ImportError:
+        try:
+            import tomli as tomllib
+        except ImportError:
+            tomllib = None
+    text = (ROOT / 'pyproject.toml').read_text()
+    if tomllib is not None:
+        data = tomllib.loads(text)
+        assert not data.get('project', {}).get('dependencies')
+    else:
+        import re
+        assert not re.search(r'^\s*dependencies\s*=\s*\[\s*[^\s\]]', text,
+                             re.M)
 
 
 def test_con_001_ac_2_only_stdlib_imports():
