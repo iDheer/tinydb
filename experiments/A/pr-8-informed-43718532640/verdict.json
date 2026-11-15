@@ -1,0 +1,83 @@
+{
+  "pr": 8,
+  "issue": 3,
+  "round": 1,
+  "raw_verdict": "request_changes",
+  "verdict": "request_changes",
+  "route": "implement",
+  "overrides": [],
+  "findings": [
+    {
+      "severity": "blocker",
+      "category": "code",
+      "file": "tinydb/table.py",
+      "line": 297,
+      "description": "A truncated result from a limited search is written to the query cache under `cond`. Every later unlimited `search(cond)` on the same table then returns only the truncated subset until the next write. This silently drops results, which breaks 'without limit it should behave exactly as it does now'. The PR description claims the result is 'cached exactly like before', and that is the bug. It also contradicts design.md step 6.",
+      "evidence": "Probe: db.search(q, limit=3) and then db.search(q) gives 3 instead of 15.",
+      "suggested_fix": "Cache only when the scan ran to completion: when limit is None, or when the loop never broke early. Track a `truncated` flag and skip the cache write when it is set."
+    },
+    {
+      "severity": "major",
+      "category": "code",
+      "file": "tinydb/table.py",
+      "line": 268,
+      "description": "On a cache hit the limit is ignored and the full cached list is returned. Any limited search that follows an unlimited search with the same query returns more than `limit` documents.",
+      "evidence": "Probe: db.search(q) and then db.search(q, limit=10) gives 15 documents.",
+      "suggested_fix": "Return `cached_results[:limit]` when limit is not None, otherwise `cached_results[:]`."
+    },
+    {
+      "severity": "major",
+      "category": "tests",
+      "file": "tests/test_search_limit.py",
+      "line": 1,
+      "description": "The tests only cover a cold-cache limited search and a plain unlimited search. Nothing covers the cache interaction (limited then unlimited, or unlimited then limited), and that is where both bugs are.",
+      "evidence": "The file has 2 tests and neither runs two searches with the same query.",
+      "suggested_fix": "Add tests for: limited then unlimited returns all matches; unlimited then limited honours the limit; limited search after an insert; limit=0; limit greater than the number of matches; db.search forwarding; and an early-termination call count."
+    },
+    {
+      "severity": "minor",
+      "category": "code",
+      "file": "tinydb/table.py",
+      "line": 249,
+      "description": "`limit` is not validated, and it is positional-or-keyword, while the design specified keyword-only. Negative values silently return [] (and the [] gets cached). Non-int values such as '10' raise an obscure TypeError from the comparison inside the loop. The design called for ValueError on negatives, TypeError on non-int/bool, and an early return of [] for 0 without touching the cache.",
+      "evidence": "Probe: limit=-1 gives 0 with no error.",
+      "suggested_fix": "Make the signature `search(self, cond, *, limit=None)`. Validate limit up front, and return [] for limit=0 before the cache is involved."
+    }
+  ],
+  "executed": [
+    "python -m pytest -q",
+    "python /home/runner/work/_temp/autose/review-scratch/probe_limit.py"
+  ],
+  "meta": {
+    "model": "claude-opus-5-5",
+    "cost_usd": 0.1760678,
+    "num_turns": 8,
+    "usage": {
+      "input_tokens": 10,
+      "cache_creation_input_tokens": 15058,
+      "cache_read_input_tokens": 86989,
+      "output_tokens": 4167,
+      "output_tokens_details": {
+        "thinking_tokens": 216
+      },
+      "server_tool_use": {
+        "web_search_requests": 0,
+        "web_fetch_requests": 0
+      },
+      "service_tier": "standard",
+      "cache_creation": {
+        "ephemeral_1h_input_tokens": 0,
+        "ephemeral_5m_input_tokens": 15058
+      },
+      "inference_geo": "global",
+      "iterations": [],
+      "speed": "standard",
+      "fallback_credit": null
+    },
+    "variant": "informed",
+    "ok": true,
+    "error": ""
+  },
+  "variant": "informed",
+  "head_sha": "7c49fa8511c28b0d66f98c4c824df7e0f9da72d4"
+}
