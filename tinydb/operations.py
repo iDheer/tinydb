@@ -55,6 +55,19 @@ def set(field: str, val: Any) -> Callable[[MutableMapping], None]:
     return transform
 
 
+def append(field: str, value: Any) -> Callable[[MutableMapping], None]:
+    """
+    Append ``value`` to the list stored in a given field of the document.
+
+    If the field does not exist, it is created as a list containing only
+    ``value``. A list passed as ``value`` is added as a single element.
+    """
+    def transform(doc: MutableMapping):
+        doc.setdefault(field, []).append(value)
+
+    return transform
+
+
 def increment(field: str) -> Callable[[MutableMapping], None]:
     """
     Increment a given field in the document by 1.
