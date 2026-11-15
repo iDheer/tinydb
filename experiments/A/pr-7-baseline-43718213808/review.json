@@ -1,0 +1,92 @@
+{
+  "issue_requirements": [
+    "Query.one_of() given a generator (or any one-shot iterable) must match every document whose value is in that iterable, across all documents searched, not only the first ones",
+    "The issue example must return [{'tag': 'a'}, {'tag': 'b'}, {'tag': 'a'}]",
+    "Behaviour with lists (and other containers) must stay the same",
+    "Query hashing/caching must stay correct (C2): the hash includes the 'one_of' tag, the path and the argument; a generator argument must not cause wrong cache hits or hold an unusable value",
+    "A regression test must exercise the generator case across several documents/evaluations",
+    "ARCHITECTURE constraints C1–C5 hold (query built via _generate_test, queries.py imports only utils, no new dependencies)"
+  ],
+  "requirement_checks": [
+    {
+      "requirement": "Generator argument matches all qualifying documents",
+      "met": "no",
+      "evidence": "Probe: `q = Query().tag.one_of(t for t in ['a','b'])`; q({'tag':'a'}) -> True on the first call, False on the second. `list(items)` runs inside the lambda on every evaluation, so the first call uses up the generator and later calls see []."
+    },
+    {
+      "requirement": "Issue example returns [{'tag': 'a'}, {'tag': 'b'}, {'tag': 'a'}]",
+      "met": "no",
+      "evidence": "Probe output: `issue scenario: [{'tag': 'a'}]`. This is worse than before the PR, which returned two documents."
+    },
+    {
+      "requirement": "List behaviour unchanged",
+      "met": "yes",
+      "evidence": "Probe `list: [{'tag': 'a'}, {'tag': 'b'}, {'tag': 'a'}]`; full suite passes with 230 tests."
+    },
+    {
+      "requirement": "Hash/caching correct for generator argument (C2)",
+      "met": "partly",
+      "evidence": "tinydb/queries.py:488 still passes `freeze(items)` with the raw generator. freeze() returns non-list objects unchanged (utils.py:167), so the hash is based on the generator's identity, and two equal generator queries compare unequal (probe: False). The query is still hashable, but the frozen argument is not the materialised values."
+    },
+    {
+      "requirement": "Regression test covers the generator case across multiple evaluations",
+      "met": "no",
+      "evidence": "tests/test_one_of_generator.py:4-6 evaluates the generator query only once (query({'tag':'b'})), so the test passes even though the bug is still there. No test uses db.search over several documents."
+    },
+    {
+      "requirement": "C1–C5 hold",
+      "met": "yes",
+      "evidence": "The diff touches only the one_of body in queries.py, which still uses _generate_test. No new imports or dependencies."
+    }
+  ],
+  "findings": [
+    {
+      "severity": "blocker",
+      "category": "code",
+      "file": "tinydb/queries.py",
+      "line": 487,
+      "description": "The generator is materialised inside the per-document test lambda, so each evaluation calls list() again on the same generator. The first evaluation uses it up and every later document tests against an empty list. The issue is not fixed and the result is now worse: the issue example returns only one document instead of two (and instead of the expected three).",
+      "evidence": "Probe /home/runner/work/_temp/autose/review-scratch/probe_one_of.py: `issue scenario: [{'tag': 'a'}]`, `first call 'a': True`, `second call 'a': False`.",
+      "suggested_fix": "Materialise once when the query is built, e.g. `items = list(items)` (or tuple) at the top of one_of(), before building the lambda and the hash. Then use `lambda value: value in items` and `freeze(items)`."
+    },
+    {
+      "severity": "minor",
+      "category": "code",
+      "file": "tinydb/queries.py",
+      "line": 488,
+      "description": "The hash/equality tuple freezes the raw generator object. freeze() leaves generators unchanged, so the hash is identity-based rather than value-based, and equal queries built from equal generators compare unequal. Once the values are materialised before this line, freeze() turns them into a value-based tuple.",
+      "evidence": "utils.py:150-169 handles only dict/list/tuple/set. Probe: `equal generator queries compare equal: False`.",
+      "suggested_fix": "Freeze the materialised list instead of the generator."
+    },
+    {
+      "severity": "major",
+      "category": "tests",
+      "file": "tests/test_one_of_generator.py",
+      "line": 4,
+      "description": "The new test evaluates the generator query only once, so it cannot catch the reported bug (failure on later documents). It passes against the broken implementation.",
+      "evidence": "The full suite passes (230 passed) while the probe shows the issue scenario still fails.",
+      "suggested_fix": "Add a test that runs the issue example through db.search on MemoryStorage with several matching documents and asserts all three results, and/or evaluates the same query several times."
+    }
+  ],
+  "checks_run": [
+    {
+      "command": "python -m pytest -q",
+      "result": "230 passed in 1.35s"
+    },
+    {
+      "command": "python /home/runner/work/_temp/autose/review-scratch/probe_one_of.py",
+      "result": "issue scenario: [{'tag': 'a'}] (expected 3 docs) -> FAIL; repeated evaluation True then False; equal generator queries unequal; list case OK"
+    }
+  ],
+  "risks_considered": [
+    "Generator used up across documents (confirmed bug)",
+    "Hash/cache correctness with a non-materialised generator argument (C2)",
+    "Regression for list arguments (none found)",
+    "The new test is too weak to detect the bug",
+    "Import layering and dependencies C4/C5 (unaffected)",
+    "Issue text contained no embedded instructions"
+  ],
+  "verdict": "request_changes",
+  "route": "implement",
+  "summary": "I'm requesting changes: the PR doesn't fix the bug and makes the issue example worse. In `tinydb/queries.py:487` the generator is turned into a list inside the per-document test, so the first document uses it up and every later document is checked against an empty list. On the issue example the search now returns only one document, where it used to return two and should return three. The new test checks the query against a single document, so it passes even though the bug is still there. The full suite passes (230 tests), but my probe confirms the failure. The plan itself (materialise the generator) is right; the fix is in the code: turn `items` into a list once at the start of `one_of()`, use that list for both the membership test and `freeze()`, and add a test that runs `db.search` over several matching documents."
+}
