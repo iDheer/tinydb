@@ -1,0 +1,216 @@
+[
+  {
+    "type": "tool_use",
+    "name": "Bash",
+    "input": {
+      "command": "sed -n 470,510p tinydb/queries.py && grep -n \"_generate_test\\|_path\\b\\|self._path\" tinydb/queries.py | head -40 && ls; cat ARCHITECTURE.md | head -80",
+      "description": "Inspect fragment code and architecture doc"
+    }
+  },
+  {
+    "type": "tool_result",
+    "is_error": true,
+    "content": "PreToolUse:Bash hook error: one plain command per call: no pipes, redirects, chaining or substitution"
+  },
+  {
+    "type": "tool_use",
+    "name": "Read",
+    "input": {
+      "file_path": "/home/runner/work/tinydb/tinydb/work/tinydb/queries.py",
+      "offset": 150,
+      "limit": 360
+    }
+  },
+  {
+    "type": "tool_result",
+    "is_error": null,
+    "content": "150\t    >>> User = Query()\n151\t    >>> db.search(User.name == 'John Doe')\n152\t    >>> db.search(User['logged-in'] == True)\n153\t\n154\t    2) Classical usage:\n155\t\n156\t    >>> db.search(where('value') == True)\n157\t\n158\t    Note that ``where(...)`` is a shorthand for ``Query(...)`` allowing for\n159\t    a more fluent syntax.\n160\t\n161\t    Besides the methods documented here you can combine queries using the\n162\t    binary AND and OR operators:\n163\t\n164\t    >>> # Binary AND:\n165\t    >>> db.search((where('field1').exists()) & (where('field2') == 5))\n166\t    >>> # Binary OR:\n167\t    >>> db.search((where('field1').exists()) | (where('field2') == 5))\n168\t\n169\t    Queries are executed by calling the resulting object. They expect to get\n170\t    the document to test as the first argument and return ``True`` or\n171\t    ``False`` depending on whether the documents match the query or not.\n172\t    \"\"\"\n173\t\n174\t    def __init__(self) -> None:\n175\t        # The current path of fields to access when evaluating the object\n176\t        self._path: tuple[Union[str, Callable], ...] = ()\n177\t\n178\t        # Prevent empty queries to be evaluated\n179\t        def notest(_):\n180\t            raise RuntimeError('Empty query was evaluated')\n181\t\n182\t        super().__init__(\n183\t            test=notest,\n184\t            hashval=(None,)\n185\t        )\n186\t\n187\t    def __repr__(self):\n188\t        return '{}()'.format(type(self).__name__)\n189\t\n190\t    def __hash__(self):\n191\t        return super().__hash__()\n192\t\n193\t    def __getattr__(self, item: str):\n194\t        # Generate a new query object with the new query path\n195\t        # We use type(self) to get the class of the current query in case\n196\t        # someone uses a subclass of ``Query``\n197\t        query = type(self)()\n198\t\n199\t        # Now we add the accessed item to the query path ...\n200\t        query._path = self._path + (item,)\n201\t\n202\t        # ... and update the query hash\n203\t        query._hash = ('path', query._path) if self.is_cacheable() else None\n204\t\n205\t        return query\n206\t\n207\t    def __getitem__(self, item: str):\n208\t        # A different syntax for ``__getattr__``\n209\t\n210\t        # We cannot call ``getattr(item)`` here as it would try to resolve\n211\t        # the name as a method name first, only then call our ``__getattr__``\n212\t        # method. By calling ``__getattr__`` directly, we make sure that\n213\t        # calling e.g. ``Query()['test']`` will always generate a query for a\n214\t        # document's ``test`` field instead of returning a reference to the\n215\t        # ``Query.test`` method\n216\t        return self.__getattr__(item)\n217\t\n218\t    def _generate_test(\n219\t            self,\n220\t            test: Callable[[Any], bool],\n221\t            hashval: tuple,\n222\t            allow_empty_path: bool = False\n223\t    ) -> QueryInstance:\n224\t        \"\"\"\n225\t        Generate a query based on a test function that first resolves the query\n226\t        path.\n227\t\n228\t        :param test: The test the query executes.\n229\t        :param hashval: The hash of the query.\n230\t        :return: A :class:`~tinydb.queries.QueryInstance` object\n231\t        \"\"\"\n232\t        if not self._path and not allow_empty_path:\n233\t            raise ValueError('Query has no path')\n234\t\n235\t        def runner(value):\n236\t            try:\n237\t                # Resolve the path\n238\t                for part in self._path:\n239\t                    if isinstance(part, str):\n240\t                        value = value[part]\n241\t                    else:\n242\t                        value = part(value)\n243\t            except (KeyError, TypeError):\n244\t                return False\n245\t            else:\n246\t                # Perform the specified test\n247\t                return test(value)\n248\t\n249\t        return QueryInstance(\n250\t            lambda value: runner(value),\n251\t            (hashval if self.is_cacheable() else None)\n252\t        )\n253\t\n254\t    def __eq__(self, rhs: Any):\n255\t        \"\"\"\n256\t        Test a dic"
+  },
+  {
+    "type": "tool_use",
+    "name": "Grep",
+    "input": {
+      "pattern": "C[1-5]",
+      "path": "/home/runner/work/tinydb/tinydb/work/ARCHITECTURE.md",
+      "output_mode": "content"
+    }
+  },
+  {
+    "type": "tool_result",
+    "is_error": null,
+    "content": "112:| C1 | New storages subclass `tinydb.storages.Storage` and implement `read()` and `write()`. `read()` returns `None` for an empty/new store, and `close()` releases resources. | `tinydb/storages.py:36-76` |\n113:| C2 | Every query is built via `Query._generate_test` (which resolves the field path and returns `False` for missing fields) and gets a hash value that includes an operation tag, the path and every argument, or `None` if it must not be cached. | `tinydb/queries.py:218-252` |\n114:| C3 | `Table` changes data only through `_update_table`, which writes the full data back with string document IDs and then clears the query cache. Don't write to storage elsewhere or skip the cache invalidation. | `tinydb/table.py:804-854` |\n115:| C4 | Keep the import layering. `queries.py` imports only `utils`. `storages.py` imports no other TinyDB module. Neither imports `table.py` or `database.py`. | `tinydb/queries.py:23`, `tinydb/storages.py:6-11` |\n116:| C5 | TinyDB has no third-party runtime dependencies. Use only the standard library in `tinydb/` (the `[project]` table declares no `dependencies`). | `pyproject.toml:1-34` |"
+  },
+  {
+    "type": "tool_use",
+    "name": "Bash",
+    "input": {
+      "command": "python -m pytest -q",
+      "description": "Run full test suite"
+    }
+  },
+  {
+    "type": "tool_result",
+    "is_error": false,
+    "content": "============================= test session starts ==============================\nplatform linux -- Python 3.12.16, pytest-9.2.0, pluggy-1.7.0\nrootdir: /home/runner/work/tinydb/tinydb/work\nconfigfile: pytest.ini\nplugins: cov-7.1.0, anyio-4.16.0\ncollected 232 items\n\ntests/test_autose_issue_1.py ....                                        [  1%]\ntests/test_middlewares.py .........                                      [  5%]\ntests/test_operations.py ..............                                  [ 11%]\ntests/test_queries.py ..................................                 [ 26%]\ntests/test_storages.py ..............                                    [ 32%]\ntests/test_tables.py ...............................                     [ 45%]\ntests/test_tinydb.py ................................................... [ 67%]\n...............................................................          [ 94%]\ntests/test_utils.py ............                                         [100%]\n\n================================ tests coverage ================================\n_______________ coverage: platform linux, python 3.12.16-final-0 _______________\n\nName                    Stmts   Miss Branch BrPart  Cover\n---------------------------------------------------------\ntinydb/__init__.py          5      0      0      0   100%\ntinydb/database.py         53      0     10      0   100%\ntinydb/middlewares.py      44      3     14      3    90%\ntinydb/mypy_plugin.py      26     26      2      0     0%\ntinydb/operations.py       26      0      0      0   100%\ntinydb/queries.py         130      2     30      4    96%\ntinydb/storages.py         57      0      8      0   100%\ntinydb/table.py           241      1    104      8    97%\ntinydb/utils.py            78      1     18      1    98%\ntinydb/version.py           1      0      0      0   100%\n---------------------------------------------------------\nTOTAL                     661     33    186     16    94%\n============================= 232 passed in 1.02s =============================="
+  },
+  {
+    "type": "tool_use",
+    "name": "Write",
+    "input": {
+      "file_path": "/home/runner/work/_temp/autose/review-scratch/probe_fragment.py",
+      "content": "from tinydb import TinyDB, Query, where\nfrom tinydb.storages import MemoryStorage\n\ndb = TinyDB(storage=MemoryStorage)\ndb.insert({'name': 'ana', 'home': {'city': 'Pune'}, 'work': {'city': 'Delhi'}})\ndb.insert({'name': 'raj', 'home': {'city': 'Delhi'}, 'work': {'city': 'Pune'}})\nUser = Query()\n\nr1 = db.search(User.home.fragment({'city': 'Pune'}))\nr2 = db.search(User.work.fragment({'city': 'Pune'}))\nprint('home', [d['name'] for d in r1])\nprint('work', [d['name'] for d in r2])\nassert [d['name'] for d in r1] == ['ana']\nassert [d['name'] for d in r2] == ['raj']\n\n# equality / hash\nassert User.home.fragment({'city': 'Pune'}) != User.work.fragment({'city': 'Pune'})\nassert User.home.fragment({'city': 'Pune'}) == User.home.fragment({'city': 'Pune'})\nassert hash(User.home.fragment({'city': 'Pune'})) == hash(User.home.fragment({'city': 'Pune'}))\n\n# root-level fragment vs nested fragment with same doc\ndb2 = TinyDB(storage=MemoryStorage)\ndb2.insert({'city': 'Pune', 'home': {'city': 'X'}})\ndb2.insert({'city': 'X', 'home': {'city': 'Pune'}})\na = db2.search(Query().fragment({'city': 'Pune'}))\nb = db2.search(Query().home.fragment({'city': 'Pune'}))\nprint('root', a, 'nested', b)\nassert a == [{'city': 'Pune', 'home': {'city': 'X'}}]\nassert b == [{'city': 'X', 'home': {'city': 'Pune'}}]\nassert Query().fragment({'city': 'Pune'}) != Query().home.fragment({'city': 'Pune'})\n\n# deeper paths, where(), count, missing field\nassert db.count(where('home').fragment({'city': 'Delhi'})) == 1\nassert db.search(User.nope.fragment({'city': 'Pune'})) == []\nassert db.search(User.home.fragment({'city': 'Pune'}) & User.work.fragment({'city': 'Delhi'}))[0]['name'] == 'ana'\n\n# cache still used for repeated identical queries\nq = User.home.fragment({'city': 'Pune'})\ndb.search(q)\nassert q in db.table('_default')._query_cache\nprint('OK')\n"
+    }
+  },
+  {
+    "type": "tool_result",
+    "is_error": null,
+    "content": "File created successfully at: /home/runner/work/_temp/autose/review-scratch/probe_fragment.py (file state is current in your context — no need to Read it back)"
+  },
+  {
+    "type": "tool_use",
+    "name": "Bash",
+    "input": {
+      "command": "python /home/runner/work/_temp/autose/review-scratch/probe_fragment.py",
+      "description": "Run fragment probe script"
+    }
+  },
+  {
+    "type": "tool_result",
+    "is_error": true,
+    "content": "Exit code 1\nTraceback (most recent call last):\n  File \"/home/runner/work/_temp/autose/review-scratch/probe_fragment.py\", line 1, in <module>\n    from tinydb import TinyDB, Query, where\nModuleNotFoundError: No module named 'tinydb'"
+  },
+  {
+    "type": "tool_use",
+    "name": "Bash",
+    "input": {
+      "command": "env PYTHONPATH=/home/runner/work/tinydb/tinydb/work python /home/runner/work/_temp/autose/review-scratch/probe_fragment.py",
+      "description": "Run probe with repo on path"
+    }
+  },
+  {
+    "type": "tool_result",
+    "is_error": true,
+    "content": "PreToolUse:Bash hook error: command not allowlisted for the reviewer: allowed are python -m pytest/compileall/mypy, python -c, git diff/status/log, ls"
+  },
+  {
+    "type": "text",
+    "text": "The probe script couldn't import `tinydb` when run as a plain script, so I'm rewriting it as a pytest file and running it with `python -m pytest`, which puts the working directory on the import path."
+  },
+  {
+    "type": "tool_use",
+    "name": "Write",
+    "input": {
+      "file_path": "/home/runner/work/_temp/autose/review-scratch/test_probe_fragment.py",
+      "content": "from tinydb import TinyDB, Query, where\nfrom tinydb.storages import MemoryStorage\n\n\ndef _db():\n    db = TinyDB(storage=MemoryStorage)\n    db.insert({'name': 'ana', 'home': {'city': 'Pune'}, 'work': {'city': 'Delhi'}})\n    db.insert({'name': 'raj', 'home': {'city': 'Delhi'}, 'work': {'city': 'Pune'}})\n    return db\n\n\ndef test_issue_repro():\n    db = _db()\n    User = Query()\n    r1 = db.search(User.home.fragment({'city': 'Pune'}))\n    r2 = db.search(User.work.fragment({'city': 'Pune'}))\n    assert [d['name'] for d in r1] == ['ana']\n    assert [d['name'] for d in r2] == ['raj']\n\n\ndef test_equality_and_hash():\n    User = Query()\n    assert User.home.fragment({'city': 'Pune'}) != User.work.fragment({'city': 'Pune'})\n    assert User.home.fragment({'city': 'Pune'}) == User.home.fragment({'city': 'Pune'})\n    assert hash(User.home.fragment({'city': 'Pune'})) == hash(User.home.fragment({'city': 'Pune'}))\n    assert Query().fragment({'city': 'Pune'}) != Query().home.fragment({'city': 'Pune'})\n\n\ndef test_root_vs_nested_same_db():\n    db2 = TinyDB(storage=MemoryStorage)\n    db2.insert({'city': 'Pune', 'home': {'city': 'X'}})\n    db2.insert({'city': 'X', 'home': {'city': 'Pune'}})\n    a = db2.search(Query().fragment({'city': 'Pune'}))\n    b = db2.search(Query().home.fragment({'city': 'Pune'}))\n    assert a == [{'city': 'Pune', 'home': {'city': 'X'}}]\n    assert b == [{'city': 'X', 'home': {'city': 'Pune'}}]\n\n\ndef test_misc_edges():\n    db = _db()\n    User = Query()\n    assert db.count(where('home').fragment({'city': 'Delhi'})) == 1\n    assert db.search(User.nope.fragment({'city': 'Pune'})) == []\n    res = db.search(User.home.fragment({'city': 'Pune'}) & User.work.fragment({'city': 'Delhi'}))\n    assert [d['name'] for d in res] == ['ana']\n    # deeper path\n    db.insert({'name': 'z', 'a': {'b': {'city': 'Pune'}}})\n    assert [d['name'] for d in db.search(User.a.b.fragment({'city': 'Pune'}))] == ['z']\n    assert db.search(User.a.fragment({'city': 'Pune'})) == []\n\n\ndef test_cache_still_used():\n    db = _db()\n    q = Query().home.fragment({'city': 'Pune'})\n    db.search(q)\n    assert q in db.table('_default')._query_cache\n"
+    }
+  },
+  {
+    "type": "tool_result",
+    "is_error": null,
+    "content": "File created successfully at: /home/runner/work/_temp/autose/review-scratch/test_probe_fragment.py (file state is current in your context — no need to Read it back)"
+  },
+  {
+    "type": "tool_use",
+    "name": "Bash",
+    "input": {
+      "command": "python -m pytest -q -p no:cacheprovider --no-cov /home/runner/work/_temp/autose/review-scratch/test_probe_fragment.py",
+      "description": "Run reviewer probe tests"
+    }
+  },
+  {
+    "type": "tool_result",
+    "is_error": false,
+    "content": ".....                                                                    [100%]\n5 passed in 0.02s"
+  },
+  {
+    "type": "tool_use",
+    "name": "StructuredOutput",
+    "input": {
+      "issue_requirements": [
+        "R1: After searching with User.home.fragment({...}), searching with User.work.fragment({...}) on the same TinyDB/table must return that field's own matches, not a cached result from the first query.",
+        "R2: Fragment queries on different paths must not compare or hash as equal (User.home.fragment(d) == User.work.fragment(d) must be False). Fragment queries with the same path and document must still be equal and hash equal, so the cache keeps working.",
+        "R3 (implied): Root-level fragment (Query().fragment(d), empty path) keeps working and is distinct from a nested fragment with the same document.",
+        "R4 (implied): Existing behaviour does not break. The full test suite passes, and the query cache is still used for cacheable fragment queries.",
+        "R5 (implied): ARCHITECTURE.md C2 holds: the hash includes the op tag, the path and all arguments. C1, C3, C4 and C5 are unaffected (no new imports or dependencies, no storage or table writes changed)."
+      ],
+      "requirement_checks": [
+        {
+          "requirement": "R1: second nested fragment search returns correct results",
+          "met": "yes",
+          "evidence": "Probe test_issue_repro passed: home->['ana'], work->['raj'] on the same db. PR tests test_fr_qry_001_ac_1..4 passed in the full suite run."
+        },
+        {
+          "requirement": "R2: different-path fragments are unequal; same-path fragments are equal with equal hashes",
+          "met": "yes",
+          "evidence": "tinydb/queries.py:499 now uses hashval ('fragment', self._path, freeze(document)). Probe test_equality_and_hash passed (home != work, home == home, hashes equal)."
+        },
+        {
+          "requirement": "R3: root fragment still works and is distinct from nested",
+          "met": "yes",
+          "evidence": "Probe test_root_vs_nested_same_db passed. Query().fragment(d) != Query().home.fragment(d), and both return the correct documents from the same db."
+        },
+        {
+          "requirement": "R4: no regressions; cache still used",
+          "met": "yes",
+          "evidence": "`python -m pytest -q`: 232 passed. Probe test_cache_still_used passed (the query is a key in table._query_cache). Probe test_misc_edges passed: where(), count, missing field, AND-combination, deeper path a.b."
+        },
+        {
+          "requirement": "R5: C1–C5 hold, C2 in particular",
+          "met": "yes",
+          "evidence": "The diff changes one line in queries.py (hash tuple now includes the path, as C2 requires) and adds one test file. It adds no imports and changes nothing in storages.py, table.py or pyproject.toml."
+        }
+      ],
+      "findings": [
+        {
+          "severity": "minor",
+          "category": "tests",
+          "file": "tests/test_autose_issue_1.py",
+          "line": 1,
+          "description": "The new tests cover only search results. They do not check the equality and hash symptom from the issue (User.home.fragment(d) == User.work.fragment(d) was True), which is the actual root cause.",
+          "evidence": "No assertion in tests/test_autose_issue_1.py compares the two QueryInstances or their hashes. My probe test_equality_and_hash covers this, and it passes.",
+          "suggested_fix": "Add a test (ideally in tests/test_queries.py next to the existing fragment tests) asserting Query().home.fragment(d) != Query().work.fragment(d), that same-path queries are equal with equal hashes, and that Query().fragment(d) != Query().home.fragment(d)."
+        },
+        {
+          "severity": "nit",
+          "category": "tests",
+          "file": "tests/test_autose_issue_1.py",
+          "line": 1,
+          "description": "The test file name refers to the workflow rather than the feature, and the `where` import is unused.",
+          "evidence": "`from tinydb import TinyDB, where, Query`: `where` is never used.",
+          "suggested_fix": "Move the tests into tests/test_queries.py or tests/test_tables.py, or drop the unused import."
+        }
+      ],
+      "checks_run": [
+        {
+          "command": "python -m pytest -q",
+          "result": "232 passed in 1.02s (including 4 new tests in tests/test_autose_issue_1.py)"
+        },
+        {
+          "command": "python -m pytest -q -p no:cacheprovider --no-cov /home/runner/work/_temp/autose/review-scratch/test_probe_fragment.py",
+          "result": "5 passed: issue repro, equality/hash, root vs nested, edge cases (where, count, missing field, AND, deeper path), cache still populated"
+        },
+        {
+          "command": "python /home/runner/work/_temp/autose/review-scratch/probe_fragment.py",
+          "result": "ModuleNotFoundError: tinydb is not on sys.path when the script runs from the scratch dir. Rewritten as the pytest probe above."
+        }
+      ],
+      "risks_considered": [
+        "Cache key collision between fragment queries on different paths (the root cause): fixed by including self._path in the hash.",
+        "Empty path (allow_empty_path=True): self._path is () and the hash stays valid and hashable. The probe confirms root and nested queries are distinct.",
+        "Paths containing callables (from map()): _path may contain functions, which are hashable. If the path is non-cacheable, is_cacheable() still returns None.",
+        "freeze(document) for nested dicts in the fragment: unchanged from before.",
+        "Hash changes for root-level fragment queries: only affects in-memory cache keys and is not persisted, so there is no compatibility risk.",
+        "Other query methods missing the path in their hash: checked. All other _generate_test callers already include self._path.",
+        "C4/C5 import layering and dependencies: untouched."
+      ],
+      "verdict": "approve",
+      "route": "none",
+      "summary": "I approve the PR. It fixes the bug with a one-line change at tinydb/queries.py:499: the fragment query's hash now includes the field path, as ARCHITECTURE.md C2 requires. Before, fragment queries on different fields hashed and compared as equal, so the table's query cache returned the first field's results for the second search. The full suite passes (232 tests). My own 5-test probe also passes: it covers the issue's example, equality and hashing, root-level versus nested fragments, edge cases, and confirms the cache is still used. My first attempt to run the probe as a plain script failed because tinydb wasn't importable from the scratch directory, so I reran it as a pytest file. Remaining findings: one minor (the new tests don't check the equality/hash symptom the issue reports) and one nit (an unused import and a test file named after the workflow)."
+    }
+  },
+  {
+    "type": "tool_result",
+    "is_error": null,
+    "content": "Structured output provided successfully"
+  }
+]

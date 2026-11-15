@@ -1,0 +1,205 @@
+{
+  "label": "reviewer.r1",
+  "role": "reviewer",
+  "ok": true,
+  "cost_usd": 0.2316,
+  "usage": {
+    "input_tokens": 14,
+    "cache_creation_input_tokens": 19679,
+    "cache_read_input_tokens": 89129,
+    "output_tokens": 5766,
+    "output_tokens_details": {
+      "thinking_tokens": 397
+    },
+    "server_tool_use": {
+      "web_search_requests": 0,
+      "web_fetch_requests": 0
+    },
+    "service_tier": "standard",
+    "cache_creation": {
+      "ephemeral_1h_input_tokens": 0,
+      "ephemeral_5m_input_tokens": 19679
+    },
+    "inference_geo": "global",
+    "iterations": [],
+    "speed": "standard",
+    "fallback_credit": null
+  },
+  "num_turns": 11,
+  "duration_s": 54.8,
+  "error": "",
+  "denials": 2,
+  "model": "claude-opus-5-5",
+  "tool_calls": [
+    {
+      "tool": "Bash",
+      "args": {
+        "command": "sed -n 470,510p tinydb/queries.py && grep -n \"_generate_test\\|_path\\b\\|self._path\" tinydb/queries.py | head -40 && ls; cat ARCHITECTURE.md | head -80",
+        "description": "Inspect fragment code and architecture doc"
+      },
+      "allowed": false,
+      "reason": "one plain command per call: no pipes, redirects, chaining or substitution"
+    },
+    {
+      "tool": "Read",
+      "args": {
+        "file_path": "/home/runner/work/tinydb/tinydb/work/tinydb/queries.py",
+        "offset": 150,
+        "limit": 360
+      },
+      "allowed": true,
+      "reason": "read inside working tree"
+    },
+    {
+      "tool": "Grep",
+      "args": {
+        "pattern": "C[1-5]",
+        "path": "/home/runner/work/tinydb/tinydb/work/ARCHITECTURE.md",
+        "output_mode": "content"
+      },
+      "allowed": true,
+      "reason": "read inside working tree"
+    },
+    {
+      "tool": "Bash",
+      "args": {
+        "command": "python -m pytest -q",
+        "description": "Run full test suite"
+      },
+      "allowed": true,
+      "reason": "allowlisted command"
+    },
+    {
+      "tool": "Write",
+      "args": {
+        "file_path": "/home/runner/work/_temp/autose/review-scratch/probe_fragment.py",
+        "content": "from tinydb import TinyDB, Query, where\nfrom tinydb.storages import MemoryStorage\n\ndb = TinyDB(storage=MemoryStorage)\ndb.insert({'name': 'ana', 'home': {'city': 'Pune'}, 'work': {'city': 'Delhi'}})\ndb.insert({'name': 'raj', 'home': {'city': 'Delhi'}, 'work': {'city': 'Pune'}})\nUser = Query()\n\nr1 = d…"
+      },
+      "allowed": true,
+      "reason": "scratch write"
+    },
+    {
+      "tool": "Bash",
+      "args": {
+        "command": "python /home/runner/work/_temp/autose/review-scratch/probe_fragment.py",
+        "description": "Run fragment probe script"
+      },
+      "allowed": true,
+      "reason": "reviewer probe script in scratch"
+    },
+    {
+      "tool": "Bash",
+      "args": {
+        "command": "env PYTHONPATH=/home/runner/work/tinydb/tinydb/work python /home/runner/work/_temp/autose/review-scratch/probe_fragment.py",
+        "description": "Run probe with repo on path"
+      },
+      "allowed": false,
+      "reason": "command not allowlisted for the reviewer: allowed are python -m pytest/compileall/mypy, python -c, git diff/status/log, ls"
+    },
+    {
+      "tool": "Write",
+      "args": {
+        "file_path": "/home/runner/work/_temp/autose/review-scratch/test_probe_fragment.py",
+        "content": "from tinydb import TinyDB, Query, where\nfrom tinydb.storages import MemoryStorage\n\n\ndef _db():\n    db = TinyDB(storage=MemoryStorage)\n    db.insert({'name': 'ana', 'home': {'city': 'Pune'}, 'work': {'city': 'Delhi'}})\n    db.insert({'name': 'raj', 'home': {'city': 'Delhi'}, 'work': {'city': 'Pune'}}…"
+      },
+      "allowed": true,
+      "reason": "scratch write"
+    },
+    {
+      "tool": "Bash",
+      "args": {
+        "command": "python -m pytest -q -p no:cacheprovider --no-cov /home/runner/work/_temp/autose/review-scratch/test_probe_fragment.py",
+        "description": "Run reviewer probe tests"
+      },
+      "allowed": true,
+      "reason": "allowlisted command"
+    },
+    {
+      "tool": "StructuredOutput",
+      "args": {
+        "issue_requirements": [
+          "R1: After searching with User.home.fragment({...}), searching with User.work.fragment({...}) on the same TinyDB/table must return that field's own matches, not a cached result from the first query.",
+          "R2: Fragment queries on different paths must not compare or hash as equal (User.home.fragment(d) == User.work.fragment(d) must be False). Fragment queries with the same path and document must still be equal and hash equal, so the cache keeps working.",
+          "R3 (implied): Root-level fragment (Query().fragment(d), empty path) keeps working and is distinct from a nested fragment with the same document.",
+          "R4 (implied): Existing behaviour does not break. The full test suite passes, and the query cache is still used for cacheable fragment queries.",
+          "R5 (implied): ARCHITECTURE.md C2 holds: the hash includes the op tag, the path and all arguments. C1, C3, C4 and C5 are unaffected (no new imports or dependencies, no storage or table writes changed)."
+        ],
+        "requirement_checks": [
+          {
+            "requirement": "R1: second nested fragment search returns correct results",
+            "met": "yes",
+            "evidence": "Probe test_issue_repro passed: home->['ana'], work->['raj'] on the same db. PR tests test_fr_qry_001_ac_1..4 passed in the full suite run."
+          },
+          {
+            "requirement": "R2: different-path fragments are unequal; same-path fragments are equal with equal hashes",
+            "met": "yes",
+            "evidence": "tinydb/queries.py:499 now uses hashval ('fragment', self._path, freeze(document)). Probe test_equality_and_hash passed (home != work, home == home, hashes equal)."
+          },
+          {
+            "requirement": "R3: root fragment still works and is distinct from nested",
+            "met": "yes",
+            "evidence": "Probe test_root_vs_nested_same_db passed. Query().fragment(d) != Query().home.fragment(d), and both return the correct documents from the same db."
+          },
+          {
+            "requirement": "R4: no regressions; cache still used",
+            "met": "yes",
+            "evidence": "`python -m pytest -q`: 232 passed. Probe test_cache_still_used passed (the query is a key in table._query_cache). Probe test_misc_edges passed: where(), count, missing field, AND-combination, deeper path a.b."
+          },
+          {
+            "requirement": "R5: C1–C5 hold, C2 in particular",
+            "met": "yes",
+            "evidence": "The diff changes one line in queries.py (hash tuple now includes the path, as C2 requires) and adds one test file. It adds no imports and changes nothing in storages.py, table.py or pyproject.toml."
+          }
+        ],
+        "findings": [
+          {
+            "severity": "minor",
+            "category": "tests",
+            "file": "tests/test_autose_issue_1.py",
+            "line": 1,
+            "description": "The new tests cover only search results. They do not check the equality and hash symptom from the issue (User.home.fragment(d) == User.work.fragment(d) was True), which is the actual root cause.",
+            "evidence": "No assertion in tests/test_autose_issue_1.py compares the two QueryInstances or their hashes. My probe test_equality_and_hash covers this, and it passes.",
+            "suggested_fix": "Add a test (ideally in tests/test_queries.py next to the existing fragment tests) asserting Query().home.fragment(d) != Query().work.fragment(d), that same-path queries are equal with equal hashes, and that Query().fragment(d) != Query().home.fragment(d)."
+          },
+          {
+            "severity": "nit",
+            "category": "tests",
+            "file": "tests/test_autose_issue_1.py",
+            "line": 1,
+            "description": "The test file name refers to the workflow rather than the feature, and the `where` import is unused.",
+            "evidence": "`from tinydb import TinyDB, where, Query`: `where` is never used.",
+            "suggested_fix": "Move the tests into tests/test_queries.py or tests/test_tables.py, or drop the unused import."
+          }
+        ],
+        "checks_run": [
+          {
+            "command": "python -m pytest -q",
+            "result": "232 passed in 1.02s (including 4 new tests in tests/test_autose_issue_1.py)"
+          },
+          {
+            "command": "python -m pytest -q -p no:cacheprovider --no-cov /home/runner/work/_temp/autose/review-scratch/test_probe_fragment.py",
+            "result": "5 passed: issue repro, equality/hash, root vs nested, edge cases (where, count, missing field, AND, deeper path), cache still populated"
+          },
+          {
+            "command": "python /home/runner/work/_temp/autose/review-scratch/probe_fragment.py",
+            "result": "ModuleNotFoundError: tinydb is not on sys.path when the script runs from the scratch dir. Rewritten as the pytest probe above."
+          }
+        ],
+        "risks_considered": [
+          "Cache key collision between fragment queries on different paths (the root cause): fixed by including self._path in the hash.",
+          "Empty path (allow_empty_path=True): self._path is () and the hash stays valid and hashable. The probe confirms root and nested queries are distinct.",
+          "Paths containing callables (from map()): _path may contain functions, which are hashable. If the path is non-cacheable, is_cacheable() still returns None.",
+          "freeze(document) for nested dicts in the fragment: unchanged from before.",
+          "Hash changes for root-level fragment queries: only affects in-memory cache keys and is not persisted, so there is no compatibility risk.",
+          "Other query methods missing the path in their hash: checked. All other _generate_test callers already include self._path.",
+          "C4/C5 import layering and dependencies: untouched."
+        ],
+        "verdict": "approve",
+        "route": "none",
+        "summary": "I approve the PR. It fixes the bug with a one-line change at tinydb/queries.py:499: the fragment query's hash now includes the field path, as ARCHITECTURE.md C2 requires. Before, fragment queries on different fields hashed and compared as equal, so the table's query cache returned the first field's …"
+      },
+      "allowed": true,
+      "reason": "final structured answer"
+    }
+  ]
+}

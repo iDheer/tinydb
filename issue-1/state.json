@@ -52,11 +52,46 @@
     }
   ],
   "round": 1,
-  "status": "pr-open",
+  "status": "handover",
   "pr": 12,
   "head_sha": "1ff2b1830c1f6050c5fbf09cff07a91d50a3f861",
   "ci": {
     "conclusion": "success",
     "url": "https://github.com/iDheer/tinydb/actions/runs/43717273822"
+  },
+  "reviews": [
+    {
+      "round": 1,
+      "verdict": "approve",
+      "route": "none",
+      "findings": 2,
+      "cost_usd": 0.2315968,
+      "run_url": "https://github.com/iDheer/tinydb/actions/runs/43717026729",
+      "head_sha": "1ff2b1830c1f6050c5fbf09cff07a91d50a3f861"
+    }
+  ],
+  "last_review": {
+    "round": 1,
+    "findings": [
+      {
+        "severity": "minor",
+        "category": "tests",
+        "file": "tests/test_autose_issue_1.py",
+        "line": 1,
+        "description": "The new tests cover only search results. They do not check the equality and hash symptom from the issue (User.home.fragment(d) == User.work.fragment(d) was True), which is the actual root cause.",
+        "evidence": "No assertion in tests/test_autose_issue_1.py compares the two QueryInstances or their hashes. My probe test_equality_and_hash covers this, and it passes.",
+        "suggested_fix": "Add a test (ideally in tests/test_queries.py next to the existing fragment tests) asserting Query().home.fragment(d) != Query().work.fragment(d), that same-path queries are equal with equal hashes, and that Query().fragment(d) != Query().home.fragment(d)."
+      },
+      {
+        "severity": "nit",
+        "category": "tests",
+        "file": "tests/test_autose_issue_1.py",
+        "line": 1,
+        "description": "The test file name refers to the workflow rather than the feature, and the `where` import is unused.",
+        "evidence": "`from tinydb import TinyDB, where, Query`: `where` is never used.",
+        "suggested_fix": "Move the tests into tests/test_queries.py or tests/test_tables.py, or drop the unused import."
+      }
+    ],
+    "verdict": "approve"
   }
 }
