@@ -1,0 +1,83 @@
+{
+  "pr": 10,
+  "issue": 3,
+  "round": 1,
+  "raw_verdict": "request_changes",
+  "verdict": "request_changes",
+  "route": "implement",
+  "overrides": [],
+  "findings": [
+    {
+      "severity": "major",
+      "category": "code",
+      "file": "tinydb/table.py",
+      "line": 268,
+      "description": "For the same input, the result depends on the hidden query-cache state. With a negative limit, a cold cache returns [] (the loop breaks at once because len(docs) >= -1), while a warm cache returns cached_results[:-1], which is every match except the last. With a float limit, a cold cache returns ceil(limit) docs, while a warm cache raises TypeError from slicing. A caller computing something like `limit=n-1` can silently get completely different results depending on whether the same query ran before. The design promised validation (TypeError for non-int or bool, ValueError for negatives), but the implementation has none.",
+      "evidence": "Probe output: 'limit=-1 cold len 0 warm len 14'; 'float limit cold 3'; 'float warm raises TypeError slice indices must be integers...'",
+      "suggested_fix": "Validate limit at the top of search(), before the cache lookup: None means no limit; reject bool and non-int with TypeError; reject negative values with ValueError; return [] for 0. Then both paths agree."
+    },
+    {
+      "severity": "minor",
+      "category": "tests",
+      "file": "tests/test_search_limit.py",
+      "line": 1,
+      "description": "The tests cover only the basic order and cache-interaction cases. Nothing covers limit greater than the match count, limit equal to the match count, limit=0, invalid or negative limits, early termination (a call-counting cond), or a write after a limited search. Those gaps let the cold/warm inconsistency above go unnoticed.",
+      "evidence": "The file has 2 tests (20 lines). The spec ACs FR-SEARCH-001.AC-2/AC-3 and the edge cases Q-001/Q-002 have no tests.",
+      "suggested_fix": "Add tests for limit > matches, limit == matches, limit=0, negative and non-int limits (same behaviour on cold and warm cache), early stop via a counting callable, and insert-after-limited-search."
+    },
+    {
+      "severity": "nit",
+      "category": "code",
+      "file": "tinydb/table.py",
+      "line": 249,
+      "description": "limit is positional-or-keyword, although the design said keyword-only. Positional use (search(q, 3)) works. That is acceptable, but it differs from the design and becomes a public API commitment.",
+      "evidence": "Probe: 'positional 3'. The signature is `search(self, cond, limit=None)`.",
+      "suggested_fix": "Either make it keyword-only (`*, limit=None`) as designed, or document the positional form deliberately."
+    },
+    {
+      "severity": "nit",
+      "category": "code",
+      "file": "tinydb/table.py",
+      "line": 274,
+      "description": "The limit check sits at the top of the loop, so the scan reads one more element before breaking, and a limited scan that runs to the end is not cached even though it saw every match. This is correct but slightly wasteful.",
+      "evidence": "table.py:273-278",
+      "suggested_fix": "Break right after the append when len(docs) == limit. Optionally cache the result when the loop completes without truncation."
+    }
+  ],
+  "executed": [
+    "python -m pytest -q",
+    "python /home/runner/work/_temp/autose/review-scratch/probe_limit.py"
+  ],
+  "meta": {
+    "model": "claude-opus-5-5",
+    "cost_usd": 0.1920922,
+    "num_turns": 8,
+    "usage": {
+      "input_tokens": 8,
+      "cache_creation_input_tokens": 15648,
+      "cache_read_input_tokens": 66001,
+      "output_tokens": 5031,
+      "output_tokens_details": {
+        "thinking_tokens": 665
+      },
+      "server_tool_use": {
+        "web_search_requests": 0,
+        "web_fetch_requests": 0
+      },
+      "service_tier": "standard",
+      "cache_creation": {
+        "ephemeral_1h_input_tokens": 0,
+        "ephemeral_5m_input_tokens": 15648
+      },
+      "inference_geo": "global",
+      "iterations": [],
+      "speed": "standard",
+      "fallback_credit": null
+    },
+    "variant": "informed",
+    "ok": true,
+    "error": ""
+  },
+  "variant": "informed",
+  "head_sha": "5d5c862c4899fb576a4561049c8bf0c8d258639f"
+}
