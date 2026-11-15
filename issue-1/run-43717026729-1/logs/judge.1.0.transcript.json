@@ -1,0 +1,35 @@
+[
+  {
+    "type": "tool_use",
+    "name": "StructuredOutput",
+    "input": {
+      "criteria": [
+        {
+          "id": "FR-QRY-001.AC-1",
+          "testable": true,
+          "reason": "The starting documents, the prior search, and the second search are all concrete, and the expected result is an exact one-item list equal to B with A absent."
+        },
+        {
+          "id": "FR-QRY-001.AC-2",
+          "testable": true,
+          "reason": "A first-run search on a known two-document database has a concrete expected result, a one-item list equal to A."
+        },
+        {
+          "id": "FR-QRY-001.AC-3",
+          "testable": true,
+          "reason": "The prior work search, the home search, and the expected one-item list containing A without B are all specified exactly enough to assert."
+        },
+        {
+          "id": "FR-QRY-001.AC-4",
+          "testable": true,
+          "reason": "After a fixed sequence of home and work searches, a repeated home search has a concrete expected result, a one-item list equal to A."
+        }
+      ]
+    }
+  },
+  {
+    "type": "tool_result",
+    "is_error": null,
+    "content": "Structured output provided successfully"
+  }
+]

@@ -1,0 +1,170 @@
+{
+  "label": "planner-design.r1.0.0",
+  "role": "planner",
+  "ok": true,
+  "cost_usd": 0.06277,
+  "usage": {
+    "input_tokens": 8,
+    "cache_creation_input_tokens": 14750,
+    "cache_read_input_tokens": 40433,
+    "output_tokens": 2184,
+    "output_tokens_details": {
+      "thinking_tokens": 48
+    },
+    "server_tool_use": {
+      "web_search_requests": 0,
+      "web_fetch_requests": 0
+    },
+    "service_tier": "standard",
+    "cache_creation": {
+      "ephemeral_1h_input_tokens": 0,
+      "ephemeral_5m_input_tokens": 14750
+    },
+    "inference_geo": "global",
+    "iterations": [],
+    "speed": "standard",
+    "fallback_credit": null
+  },
+  "num_turns": 5,
+  "duration_s": 15.6,
+  "error": "",
+  "denials": 0,
+  "model": "claude-sonnet-5-5",
+  "tool_calls": [
+    {
+      "tool": "Grep",
+      "args": {
+        "pattern": "def fragment|def one_of|def exists|def matches|def search|def test\\(|_hash",
+        "path": "/home/runner/work/tinydb/tinydb/work/tinydb/queries.py",
+        "output_mode": "content"
+      },
+      "allowed": true,
+      "reason": "read inside working tree"
+    },
+    {
+      "tool": "Read",
+      "args": {
+        "file_path": "/home/runner/work/tinydb/tinydb/work/tinydb/queries.py",
+        "offset": 474,
+        "limit": 40
+      },
+      "allowed": true,
+      "reason": "read inside working tree"
+    },
+    {
+      "tool": "Read",
+      "args": {
+        "file_path": "/home/runner/work/tinydb/tinydb/work/tinydb/queries.py",
+        "offset": 215,
+        "limit": 40
+      },
+      "allowed": true,
+      "reason": "read inside working tree"
+    },
+    {
+      "tool": "StructuredOutput",
+      "args": {
+        "summary": "Include the query path (self._path) in the hash value built by Query.fragment() so fragment queries on different paths no longer compare equal or share a Table query-cache entry.",
+        "approach": "In tinydb/queries.py, change the hash tuple in Query.fragment from ('fragment', freeze(document)) to ('fragment', self._path, freeze(document)), the same shape one_of uses ('one_of', self._path, freeze(items)). This is a one-line change. _generate_test already substitutes None when the query is not …",
+        "alternatives": [
+          {
+            "option": "Disable or clear the query cache (or key it differently in Table.search)",
+            "why_not": "Out of scope per the spec, and it breaks ADR-3, which says the query's hash must carry its full meaning. The bug is in the hash, not the cache."
+          },
+          {
+            "option": "Audit and fix all Query methods that take a path",
+            "why_not": "ASM-002/Q-002 limit the scope to fragment(). Other methods such as one_of already include self._path."
+          },
+          {
+            "option": "Change _generate_test to inject self._path into every hashval automatically",
+            "why_not": "A larger refactor that would alter hashes of every existing query. It is not needed for this bug."
+          }
+        ],
+        "files": [
+          {
+            "path": "tinydb/queries.py",
+            "change": "modify",
+            "purpose": "Make the fragment query hash include the query path.",
+            "symbols": [
+              {
+                "name": "Query.fragment",
+                "kind": "method",
+                "change": "modify",
+                "description": "Change hashval passed to _generate_test to ('fragment', self._path, freeze(document)); the test logic and allow_empty_path=True stay unchanged."
+              }
+            ]
+          }
+        ],
+        "ac_mapping": [
+          {
+            "ac_id": "FR-QRY-001.AC-1",
+            "symbols": [
+              "Query.fragment"
+            ],
+            "test_idea": "MemoryStorage db with A and B; search home.fragment({'city':'Pune'}) then work.fragment(same); assert the second result == [B] and A is not in it."
+          },
+          {
+            "ac_id": "FR-QRY-001.AC-2",
+            "symbols": [
+              "Query.fragment"
+            ],
+            "test_idea": "Fresh db with A and B; first search User.home.fragment({'city':'Pune'}) returns exactly [A]."
+          },
+          {
+            "ac_id": "FR-QRY-001.AC-3",
+            "symbols": [
+              "Query.fragment"
+            ],
+            "test_idea": "Search work.fragment first (gives [B]), then home.fragment; assert the result == [A] and B is not in it."
+          },
+          {
+            "ac_id": "FR-QRY-001.AC-4",
+            "symbols": [
+              "Query.fragment"
+            ],
+            "test_idea": "Run home, then work, then home again on the same db; assert the final result == [A]."
+          },
+          {
+            "ac_id": "FR-QRY-002.AC-1",
+            "symbols": [
+              "Query.fragment"
+            ],
+            "test_idea": "Assert (User.home.fragment({'city':'Pune'}) == User.work.fragment({'city':'Pune'})) is False."
+          },
+          {
+            "ac_id": "FR-QRY-002.AC-2",
+            "symbols": [
+              "Query.fragment"
+            ],
+            "test_idea": "Assert User.home.fragment({'city':'Pune'}) == User.home.fragment({'city':'Pune'}) is True, and that the two hashes are equal."
+          }
+        ],
+        "constraints": [
+          {
+            "id": "C2",
+            "how_respected": "The fragment hash now holds the operation tag, the path and the frozen argument, as C2 requires. It is still built via _generate_test, which sets it to None when the query is not cacheable."
+          },
+          {
+            "id": "C4",
+            "how_respected": "Only queries.py changes. It still imports only utils (freeze) and gains no new imports."
+          },
+          {
+            "id": "C5",
+            "how_respected": "No new dependencies; the change uses only existing code."
+          },
+          {
+            "id": "C3",
+            "how_respected": "Table and _update_table are untouched; cache invalidation on writes is unchanged."
+          }
+        ],
+        "risks": [
+          "The spec's FR-QRY-002 is only an ASSUMPTION-ONLY candidate (priority UNSET), but the fix satisfies it anyway, so there is no conflict.",
+          "Hash tuples change shape for fragment queries, so any code or test that compares against the literal tuple ('fragment', frozen) would break. A grep found none in the source files read, but the existing tests were not checked.",
+          "Other path-based queries (e.g. matches, search, test, any/all) were not audited, per Q-002. Query.test builds its hash from the function and arguments, and the remaining methods were not inspected for a similar missing path."
+        ]
+      },
+      "allowed": true,
+      "reason": "final structured answer"
+    }
+  ]
+}

@@ -1,0 +1,85 @@
+[
+  {
+    "type": "tool_use",
+    "name": "Grep",
+    "input": {
+      "pattern": "'fragment'",
+      "path": "/home/runner/work/tinydb/tinydb/work/tinydb/queries.py",
+      "output_mode": "content"
+    }
+  },
+  {
+    "type": "tool_result",
+    "is_error": null,
+    "content": "499:            ('fragment', freeze(document)),"
+  },
+  {
+    "type": "tool_use",
+    "name": "Edit",
+    "input": {
+      "replace_all": false,
+      "file_path": "/home/runner/work/tinydb/tinydb/work/tinydb/queries.py",
+      "old_string": "            ('fragment', freeze(document)),",
+      "new_string": "            ('fragment', self._path, freeze(document)),"
+    }
+  },
+  {
+    "type": "tool_result",
+    "is_error": null,
+    "content": "The file /home/runner/work/tinydb/tinydb/work/tinydb/queries.py has been updated successfully."
+  },
+  {
+    "type": "tool_use",
+    "name": "Bash",
+    "input": {
+      "command": "python -m pytest -q 2>&1 | tail -5; python -m mypy tinydb 2>&1 | tail -3"
+    }
+  },
+  {
+    "type": "tool_result",
+    "is_error": true,
+    "content": "PreToolUse:Bash hook error: one plain command per call: no pipes, redirects, chaining or substitution"
+  },
+  {
+    "type": "tool_use",
+    "name": "Bash",
+    "input": {
+      "command": "python -m pytest -q"
+    }
+  },
+  {
+    "type": "tool_use",
+    "name": "Bash",
+    "input": {
+      "command": "python -m mypy tinydb"
+    }
+  },
+  {
+    "type": "tool_result",
+    "is_error": false,
+    "content": "============================= test session starts ==============================\nplatform linux -- Python 3.12.16, pytest-9.2.0, pluggy-1.7.0\nrootdir: /home/runner/work/tinydb/tinydb/work\nconfigfile: pytest.ini\nplugins: cov-7.1.0, anyio-4.16.0\ncollected 228 items\n\ntests/test_middlewares.py .........                                      [  3%]\ntests/test_operations.py ..............                                  [ 10%]\ntests/test_queries.py ..................................                 [ 25%]\ntests/test_storages.py ..............                                    [ 31%]\ntests/test_tables.py ...............................                     [ 44%]\ntests/test_tinydb.py ................................................... [ 67%]\n...............................................................          [ 94%]\ntests/test_utils.py ............                                         [100%]\n\n================================ tests coverage ================================\n_______________ coverage: platform linux, python 3.12.16-final-0 _______________\n\nName                    Stmts   Miss Branch BrPart  Cover\n---------------------------------------------------------\ntinydb/__init__.py          5      0      0      0   100%\ntinydb/database.py         53      0     10      0   100%\ntinydb/middlewares.py      44      3     14      3    90%\ntinydb/mypy_plugin.py      26     26      2      0     0%\ntinydb/operations.py       26      0      0      0   100%\ntinydb/queries.py         130      2     30      4    96%\ntinydb/storages.py         57      0      8      0   100%\ntinydb/table.py           241      1    104      8    97%\ntinydb/utils.py            78      1     18      1    98%\ntinydb/version.py           1      0      0      0   100%\n---------------------------------------------------------\nTOTAL                     661     33    186     16    94%\n============================= 228 passed in 1.00s =============================="
+  },
+  {
+    "type": "tool_result",
+    "is_error": false,
+    "content": "Success: no issues found in 10 source files"
+  },
+  {
+    "type": "tool_use",
+    "name": "StructuredOutput",
+    "input": {
+      "status": "done",
+      "summary": "Query.fragment() now builds its hash as ('fragment', self._path, freeze(document)), like one_of. Fragment queries on different paths no longer compare equal or share a Table query-cache entry. All 228 existing tests pass and mypy is clean. I did not add tests for the new behaviour.",
+      "changed_files": [
+        "tinydb/queries.py"
+      ],
+      "design_gap": "",
+      "disputed_tests": []
+    }
+  },
+  {
+    "type": "tool_result",
+    "is_error": null,
+    "content": "Structured output provided successfully"
+  }
+]

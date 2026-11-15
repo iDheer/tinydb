@@ -1,0 +1,64 @@
+{
+  "label": "judge.1.0",
+  "role": "judge",
+  "ok": true,
+  "cost_usd": 0.0006,
+  "usage": {
+    "input_tokens": 2,
+    "cache_creation_input_tokens": 2273,
+    "cache_read_input_tokens": 2942,
+    "output_tokens": 567,
+    "output_tokens_details": {
+      "thinking_tokens": 235
+    },
+    "server_tool_use": {
+      "web_search_requests": 0,
+      "web_fetch_requests": 0
+    },
+    "service_tier": "standard",
+    "cache_creation": {
+      "ephemeral_1h_input_tokens": 0,
+      "ephemeral_5m_input_tokens": 2273
+    },
+    "inference_geo": "global",
+    "iterations": [],
+    "speed": "standard",
+    "fallback_credit": null
+  },
+  "num_turns": 2,
+  "duration_s": 3.2,
+  "error": "",
+  "denials": 0,
+  "model": "claude-haiku-5-5",
+  "tool_calls": [
+    {
+      "tool": "StructuredOutput",
+      "args": {
+        "criteria": [
+          {
+            "id": "FR-QRY-001.AC-1",
+            "testable": true,
+            "reason": "The starting documents, the prior search, and the second search are all concrete, and the expected result is an exact one-item list equal to B with A absent."
+          },
+          {
+            "id": "FR-QRY-001.AC-2",
+            "testable": true,
+            "reason": "A first-run search on a known two-document database has a concrete expected result, a one-item list equal to A."
+          },
+          {
+            "id": "FR-QRY-001.AC-3",
+            "testable": true,
+            "reason": "The prior work search, the home search, and the expected one-item list containing A without B are all specified exactly enough to assert."
+          },
+          {
+            "id": "FR-QRY-001.AC-4",
+            "testable": true,
+            "reason": "After a fixed sequence of home and work searches, a repeated home search has a concrete expected result, a one-item list equal to A."
+          }
+        ]
+      },
+      "allowed": true,
+      "reason": "final structured answer"
+    }
+  ]
+}

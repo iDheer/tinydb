@@ -1,62 +1,61 @@
-# spec.md: fragment() on a nested query path must test that path, not another path's result
+# spec.md: fragment() queries on different nested fields must return results for their own field
 
 - Issue: #1 https://github.com/iDheer/tinydb/issues/1
 - Verdict (A1 skill): **READY-WITH-OPEN-ITEMS**, stakeholder mode: unavailable
 
-Issue #1 is a precise bug report. `Query.fragment()` is built with a hash of `('fragment', freeze(document))` only (tinydb/queries.py:497-501). The query path is not part of it, although `_generate_test` does resolve the path at run time. As a result `User.home.fragment(x)` and `User.work.fragment(x)` hash and compare equal. This matches the reporter's observation that the second search returns the first search's result and that the two queries compare `True`. One core requirement (correct results per path) is READY. The equality expectation is only implied by "surprised me", so it is recorded as a candidate with a P3 question. No stakeholder or maintainer comments are available, so the verdict cannot be READY. The issue text contained no instructions aimed at the agent. No tools were used for evidence because there are no tool-answerable questions: the issue names no external standard.
+Precise bug report. In the repo, Query.fragment() builds its hash value as ('fragment', freeze(document)) without the query path (tinydb/queries.py:497-501), whereas other path-based queries such as one_of include self._path. Two fragment queries on different paths with the same fragment therefore compare equal and share a Table query-cache entry, so the second search returns the first one's cached result. The spec has one core requirement (FR-QRY-001, READY: search by fragment on a nested field returns the documents matching that field, regardless of earlier searches). It also has one candidate requirement (FR-QRY-002, ASSUMED: queries for different paths compare unequal), which is not core. The acceptance criteria now give the full contents of both documents and the exact expected result lists. Stakeholder mode is unavailable, so only P3 questions remain, which gives READY-WITH-OPEN-ITEMS. The issue contains no instructions aimed at the workflow.
 
 ## Requirements
 
-### FR-QFRAG-001: When a database is searched with a fragment query on a nested field path, the system shall return exactly the documents whose value at that path contains the given fragment, regardless of any earlier search with the same fragment on a different path in the same TinyDB instance.
+### FR-QRY-001: When db.search() is called with a fragment query on a nested field path, the system shall return exactly the documents whose value at that path contains the given fragment, regardless of which other fragment queries on other paths were run earlier on the same TinyDB instance.
 - Kind: FR · Priority: MUST · Status: **READY**
-- Source: STATED ("print(db.search(User.work.fragment({'city': 'Pune'})))  # expected [raj], but I get [ana] again")
-- Links: related: Q-001, related: TERM-001, related: RSK-001
+- Source: STATED ("expected [raj], but I get [ana] again")
+- Links: TERM-001, related: Q-002
 - Acceptance criteria:
-  - **FR-QFRAG-001.AC-1**: Given a TinyDB on MemoryStorage with documents {'name':'ana','home':{'city':'Pune'},'work':{'city':'Delhi'}} and {'name':'raj','home':{'city':'Delhi'},'work':{'city':'Pune'}}, and db.search(User.home.fragment({'city':'Pune'})) has already been executed on it, when db.search(User.work.fragment({'city':'Pune'})) is executed on the same TinyDB instance, then the result is a list containing only the document with name 'raj'.
-  - **FR-QFRAG-001.AC-2**: Given the same two documents in a freshly created TinyDB on MemoryStorage and no earlier search, when db.search(User.work.fragment({'city':'Pune'})) is executed, then the result is a list containing only the document with name 'raj'.
-  - **FR-QFRAG-001.AC-3**: Given the same two documents, and db.search(User.work.fragment({'city':'Pune'})) has already been executed on the same instance, when db.search(User.home.fragment({'city':'Pune'})) is executed, then the result is a list containing only the document with name 'ana'.
+  - **FR-QRY-001.AC-1**: Given a TinyDB(storage=MemoryStorage) containing exactly two documents, A = {'name': 'ana', 'home': {'city': 'Pune'}, 'work': {'city': 'Delhi'}} and B = {'name': 'raj', 'home': {'city': 'Delhi'}, 'work': {'city': 'Pune'}}, and db.search(User.home.fragment({'city': 'Pune'})) has already been executed once on this instance, when db.search(User.work.fragment({'city': 'Pune'})) is executed on the same instance, then the result is a list with exactly one document equal to B ({'name': 'raj', 'home': {'city': 'Delhi'}, 'work': {'city': 'Pune'}}), and A is not in it.
+  - **FR-QRY-001.AC-2**: Given a TinyDB(storage=MemoryStorage) containing exactly the two documents A = {'name': 'ana', 'home': {'city': 'Pune'}, 'work': {'city': 'Delhi'}} and B = {'name': 'raj', 'home': {'city': 'Delhi'}, 'work': {'city': 'Pune'}}, when db.search(User.home.fragment({'city': 'Pune'})) is executed as the first search on that instance, then the result is a list with exactly one document equal to A ({'name': 'ana', 'home': {'city': 'Pune'}, 'work': {'city': 'Delhi'}}).
+  - **FR-QRY-001.AC-3**: Given a TinyDB(storage=MemoryStorage) containing exactly the two documents A and B of AC-1, and db.search(User.work.fragment({'city': 'Pune'})) has already been executed once on this instance (returning [B]), when db.search(User.home.fragment({'city': 'Pune'})) is executed on the same instance, then the result is a list with exactly one document equal to A, and B is not in it.
+  - **FR-QRY-001.AC-4**: Given the same instance and documents A and B as AC-1, after the home search and then the work search have both been executed, when db.search(User.home.fragment({'city': 'Pune'})) is executed a second time, then the result is a list with exactly one document equal to A.
 
-### FR-QFRAG-002: Candidate (not agreed): two fragment queries built on different field paths with the same fragment document shall not compare equal.
+### FR-QRY-002: If the reporter's surprise at equality is read as an expectation (Q-001), the system shall evaluate a fragment query on one path as not equal to a fragment query with the same fragment on a different path.
 - Kind: FR · Priority: UNSET · Status: **ASSUMPTION-ONLY**
 - Source: ASSUMED ("Also `User.home.fragment({...}) == User.work.fragment({...})` is `True`, which surprised me.")
-- Links: ASM-001, related: Q-001
+- Links: ASM-001, Q-001, related: FR-QRY-001
 - Acceptance criteria:
-  - **FR-QFRAG-002.AC-1**: Given User = Query(), when User.home.fragment({'city': 'Pune'}) == User.work.fragment({'city': 'Pune'}) is evaluated, then the result is False.
-  - **FR-QFRAG-002.AC-2**: Given User = Query(), when User.home.fragment({'city': 'Pune'}) == User.home.fragment({'city': 'Pune'}) is evaluated, then the result is True.
+  - **FR-QRY-002.AC-1**: Given User = Query(), when the expression User.home.fragment({'city': 'Pune'}) == User.work.fragment({'city': 'Pune'}) is evaluated, then the result is False.
+  - **FR-QRY-002.AC-2**: Given User = Query(), when the expression User.home.fragment({'city': 'Pune'}) == User.home.fragment({'city': 'Pune'}) is evaluated, then the result is True.
 
 ## Open questions
 
 | Q | Priority | Question | Options / default | Blocks |
 |---|---|---|---|---|
-| Q-001 | P3 | Should two fragment queries on different paths with the same fragment document also be unequal (== False) and have different hashes, as a requirement in its own right and not only as a side effect of correct search results? | (a) Yes, queries with different paths must be unequal; (b) No, only search results must be correct (default: (a), recorded as ASM-001 (PROVISIONAL)) | FR-QFRAG-002 |
-| Q-002 | P3 | Is the same-path-different-result problem expected to be checked and fixed for other query methods and for deeper or map() paths, or only for fragment()? | (a) fragment() only; (b) also audit other Query test methods and deeper paths (default: (a) fragment() only. Deeper paths via fragment() are covered implicitly by FR-QFRAG-001's 'nested field path'.) | none yet |
+| Q-001 | P3 | Should two fragment queries with the same fragment but different paths compare unequal (== returns False), as the reporter's surprise at True suggests? | Yes, they must compare unequal; No requirement on equality; only search results matter (default: Yes, they must compare unequal (recorded as ASM-001, PROVISIONAL)) | FR-QRY-002 |
+| Q-002 | P3 | Is the fix limited to Query.fragment(), or should other query methods be checked for the same problem of two different paths sharing one query identity? | fragment() only; Audit all Query methods that take a path (default: fragment() only, with no requirement for other methods (recorded as ASM-002, PROVISIONAL)) | none yet |
 
 ## Terms
 
-- TERM-001 **caching problem**: The query-result cache of the table returns a stored result because it considers the two queries identical (consistent with the equal queries the reporter observed). / The cache is stale across searches for some other reason (the reporter's guess, not a stated requirement). Either reading only describes the cause; the required behaviour is in FR-QFRAG-001.
-- TERM-002 **nested field**: A dict-valued field reached via attribute access, such as User.home. This is the case in the issue example. / A deeper path, such as User.a.b.c, or a path through Query()['key'] or a map() step. The issue shows only one level, so deeper paths are not specified.
+- TERM-001 **"it looks like some caching problem" (and "fresh TinyDB")**: The reporter's hypothesis about the cause (the Table query cache returning an earlier result). It is a diagnosis, not a requirement, and no requirement depends on it. / A request that caching behaviour change, for example removing or disabling the query cache. Nothing in the issue says this, so it is not recorded as a requirement.
 
 ## Assumptions
 
-- ASM-001: Equal-looking queries on different paths should compare unequal and hash differently (the reporter's surprise is read as an expectation). (risk if wrong: A needless equality or hash requirement would be added. This is low impact because the search-result requirement is independent.)
-- ASM-002: The maintainer of iDheer/tinydb is the decision owner for scope questions, and the reporter is the requester. The issue-time stakeholder mode is unavailable. (risk if wrong: Q-001 and Q-002 may go to the wrong person. No core requirement depends on it.)
-- ASM-003: Python 3.12, Windows 11 and tinydb 4.9.0 are context only. The behaviour is expected to be platform independent, and the repository code shows the path missing from the fragment hash regardless of platform. (risk if wrong: If the failure were platform-specific, the acceptance tests would pass on Linux without reproducing the reporter's problem.)
+- ASM-001: The reporter's surprise that the two fragment queries compare equal means the expected result is False (not equal) for different paths. The requester or maintainer decides. (risk if wrong: FR-QRY-002 would be rejected or reworded. Core behaviour FR-QRY-001 is unaffected.)
+- ASM-002: Only fragment() is in scope for this issue. Other Query methods are reported to behave correctly and are not required to change. (risk if wrong: A similar fault in another query method would stay unreported and untested.)
 
 ## Out of scope
 
-- The design of the fix, including how the query hash or cache key is built
-- Changes to query result caching in general, or to the query cache size
-- Root-level fragment queries such as Query().fragment({...}) with an empty path, which are existing behaviour not mentioned in the issue
-- Other Query methods such as all, one_of and test, unless Q-002 is answered otherwise
-- Opening a fresh TinyDB between searches as a workaround
+- Choosing or designing the fix (for example how the query hash is built, or whether the cache is changed).
+- Behaviour of other Query methods (one_of, ==, etc.) unless a maintainer answers Q-002 otherwise.
+- Platform-specific behaviour: the Windows 11 and Python 3.12 details in the issue are context only, and the bug does not look platform-dependent.
+- Changes to the query cache policy, such as disabling the cache or changing its size.
 
 ## Testability judge (Haiku 5.5)
 
 | AC | Testable | Reason |
 |---|---|---|
-| FR-QFRAG-001.AC-1 | yes | Concrete starting state (two named documents, MemoryStorage, prior search on the same instance), a single search action, and an explicit expected result (a list containing only the document named 'raj') that a pytest assertion can check. |
-| FR-QFRAG-001.AC-2 | yes | Concrete fresh TinyDB with two named documents and no prior search, one search action, and an explicit expected result (a list containing only 'raj') that can be asserted directly. |
-| FR-QFRAG-001.AC-3 | yes | Concrete state with a prior search on the same instance, one follow-up search, and an explicit expected result (a list containing only 'ana') that is unambiguous and assertable. |
+| FR-QRY-001.AC-1 | yes | The starting documents, the prior search, and the second search are all concrete, and the expected result is an exact one-item list equal to B with A absent. |
+| FR-QRY-001.AC-2 | yes | A first-run search on a known two-document database has a concrete expected result, a one-item list equal to A. |
+| FR-QRY-001.AC-3 | yes | The prior work search, the home search, and the expected one-item list containing A without B are all specified exactly enough to assert. |
+| FR-QRY-001.AC-4 | yes | After a fixed sequence of home and work searches, a repeated home search has a concrete expected result, a one-item list equal to A. |
 
 ## Stage check: PASSED
 

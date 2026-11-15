@@ -1,0 +1,20 @@
+[
+  {
+    "type": "tool_use",
+    "name": "StructuredOutput",
+    "input": {
+      "criteria": [
+        {
+          "id": "FR-QRY-002.AC-1",
+          "testable": false,
+          "reason": "The Given refers to the ana and raj documents 'from the issue' without stating raj's contents, so the starting state is not concrete; the expected result also depends on raj's home data, which is unstated (only ana's document is given in the Then)."
+        }
+      ]
+    }
+  },
+  {
+    "type": "tool_result",
+    "is_error": null,
+    "content": "Structured output provided successfully"
+  }
+]

@@ -1,0 +1,322 @@
+{
+  "issue": 1,
+  "run_id": "43717026729",
+  "attempt": "1",
+  "mode": "start",
+  "round": 1,
+  "variant": "baseline",
+  "status": "pr-open",
+  "reason": "",
+  "started": "2026-11-15T13:04:31.592584+00:00",
+  "finished": "2026-11-15T13:07:24.650010+00:00",
+  "run_url": "https://github.com/iDheer/tinydb/actions/runs/43717026729",
+  "branch": "autose/issue-1",
+  "base_sha": "13eca00a7cd30db0b7ff133907f86a272618d869",
+  "pr": {
+    "number": 12,
+    "state": "OPEN",
+    "url": "https://github.com/iDheer/tinydb/pull/12",
+    "head_sha": "1ff2b1830c1f6050c5fbf09cff07a91d50a3f861",
+    "ci": {
+      "conclusion": "success",
+      "url": "https://github.com/iDheer/tinydb/actions/runs/43717273822",
+      "id": 43717273822
+    }
+  },
+  "cost_usd": 0.3064,
+  "tokens": {
+    "input_tokens": 40,
+    "output_tokens": 16593,
+    "cache_read_input_tokens": 254338,
+    "cache_creation_input_tokens": 56702
+  },
+  "counters": {
+    "spec_retry": 1,
+    "design_retry": 0,
+    "impl_attempts": 1,
+    "design_revisions": 0,
+    "tester_retries": 0,
+    "disputes": 0,
+    "ci_retries": 0
+  },
+  "stages": [
+    {
+      "stage": "spec",
+      "passed": false,
+      "reasons": [
+        "FR-QRY-002.AC-1: judge says not testable: The Given refers to the ana and raj documents 'from the issue' without stating raj's contents, so the starting state is not concrete; the expected result also depends on raj's home data, which is unstated (only ana's document is given in the Then)."
+      ],
+      "at": "2026-11-15T13:05:16.039396+00:00",
+      "attempt": 1
+    },
+    {
+      "stage": "spec",
+      "passed": true,
+      "reasons": [],
+      "at": "2026-11-15T13:05:57.070686+00:00",
+      "attempt": 2
+    },
+    {
+      "stage": "design",
+      "passed": true,
+      "reasons": [],
+      "at": "2026-11-15T13:06:12.661839+00:00"
+    },
+    {
+      "stage": "implement",
+      "passed": true,
+      "reasons": [],
+      "at": "2026-11-15T13:06:21.800522+00:00",
+      "attempt": 1
+    },
+    {
+      "stage": "test",
+      "passed": true,
+      "reasons": [],
+      "at": "2026-11-15T13:06:34.050990+00:00",
+      "attempt": 1
+    },
+    {
+      "stage": "release",
+      "passed": true,
+      "reasons": [
+        "PR #12 state OPEN",
+        "CI success (https://github.com/iDheer/tinydb/actions/runs/43717273822)"
+      ],
+      "at": "2026-11-15T13:07:22.372713+00:00"
+    }
+  ],
+  "agent_calls": [
+    {
+      "label": "planner-spec.0",
+      "role": "planner",
+      "ok": true,
+      "cost_usd": 0.07253,
+      "usage": {
+        "input_tokens": 6,
+        "cache_creation_input_tokens": 3752,
+        "cache_read_input_tokens": 63652,
+        "output_tokens": 5677,
+        "output_tokens_details": {
+          "thinking_tokens": 1953
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 0,
+          "ephemeral_5m_input_tokens": 3752
+        },
+        "inference_geo": "global",
+        "iterations": [],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "num_turns": 5,
+      "duration_s": 40.7,
+      "error": "",
+      "denials": 0,
+      "model": "claude-sonnet-5-5"
+    },
+    {
+      "label": "judge.0.0",
+      "role": "judge",
+      "ok": true,
+      "cost_usd": 0.00083,
+      "usage": {
+        "input_tokens": 2,
+        "cache_creation_input_tokens": 4590,
+        "cache_read_input_tokens": 0,
+        "output_tokens": 513,
+        "output_tokens_details": {
+          "thinking_tokens": 354
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 0,
+          "ephemeral_5m_input_tokens": 4590
+        },
+        "inference_geo": "global",
+        "iterations": [],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "num_turns": 2,
+      "duration_s": 3.2,
+      "error": "",
+      "denials": 0,
+      "model": "claude-haiku-5-5"
+    },
+    {
+      "label": "planner-spec.1",
+      "role": "planner",
+      "ok": true,
+      "cost_usd": 0.07736,
+      "usage": {
+        "input_tokens": 8,
+        "cache_creation_input_tokens": 5493,
+        "cache_read_input_tokens": 88689,
+        "output_tokens": 5474,
+        "output_tokens_details": {
+          "thinking_tokens": 2064
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 0,
+          "ephemeral_5m_input_tokens": 5493
+        },
+        "inference_geo": "global",
+        "iterations": [],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "num_turns": 6,
+      "duration_s": 37.8,
+      "error": "",
+      "denials": 0,
+      "model": "claude-sonnet-5-5"
+    },
+    {
+      "label": "judge.1.0",
+      "role": "judge",
+      "ok": true,
+      "cost_usd": 0.0006,
+      "usage": {
+        "input_tokens": 2,
+        "cache_creation_input_tokens": 2273,
+        "cache_read_input_tokens": 2942,
+        "output_tokens": 567,
+        "output_tokens_details": {
+          "thinking_tokens": 235
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 0,
+          "ephemeral_5m_input_tokens": 2273
+        },
+        "inference_geo": "global",
+        "iterations": [],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "num_turns": 2,
+      "duration_s": 3.2,
+      "error": "",
+      "denials": 0,
+      "model": "claude-haiku-5-5"
+    },
+    {
+      "label": "planner-design.r1.0.0",
+      "role": "planner",
+      "ok": true,
+      "cost_usd": 0.06277,
+      "usage": {
+        "input_tokens": 8,
+        "cache_creation_input_tokens": 14750,
+        "cache_read_input_tokens": 40433,
+        "output_tokens": 2184,
+        "output_tokens_details": {
+          "thinking_tokens": 48
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 0,
+          "ephemeral_5m_input_tokens": 14750
+        },
+        "inference_geo": "global",
+        "iterations": [],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "num_turns": 5,
+      "duration_s": 15.6,
+      "error": "",
+      "denials": 0,
+      "model": "claude-sonnet-5-5"
+    },
+    {
+      "label": "implementer.r1.0.1",
+      "role": "implementer",
+      "ok": true,
+      "cost_usd": 0.04624,
+      "usage": {
+        "input_tokens": 8,
+        "cache_creation_input_tokens": 13970,
+        "cache_read_input_tokens": 38438,
+        "output_tokens": 746,
+        "output_tokens_details": {
+          "thinking_tokens": 0
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 0,
+          "ephemeral_5m_input_tokens": 13970
+        },
+        "inference_geo": "global",
+        "iterations": [],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "num_turns": 7,
+      "duration_s": 9.0,
+      "error": "",
+      "denials": 1,
+      "model": "claude-sonnet-5-5"
+    },
+    {
+      "label": "tester.r1.0.1",
+      "role": "tester",
+      "ok": true,
+      "cost_usd": 0.04604,
+      "usage": {
+        "input_tokens": 6,
+        "cache_creation_input_tokens": 11874,
+        "cache_read_input_tokens": 20184,
+        "output_tokens": 1432,
+        "output_tokens_details": {
+          "thinking_tokens": 85
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 0,
+          "ephemeral_5m_input_tokens": 11874
+        },
+        "inference_geo": "global",
+        "iterations": [],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "num_turns": 6,
+      "duration_s": 11.1,
+      "error": "",
+      "denials": 1,
+      "model": "claude-sonnet-5-5"
+    }
+  ]
+}

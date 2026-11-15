@@ -1,0 +1,197 @@
+[
+  {
+    "type": "tool_use",
+    "name": "Grep",
+    "input": {
+      "pattern": "def fragment|def _generate_test|_hash|def __hash__|def __eq__|cache",
+      "path": "/home/runner/work/tinydb/tinydb/work/tinydb/queries.py",
+      "output_mode": "content"
+    }
+  },
+  {
+    "type": "tool_result",
+    "is_error": null,
+    "content": "45:    In addition, to mark a query as non-cacheable (e.g. if it involves\n46:    some remote lookup) it needs to have a method called ``is_cacheable``\n56:    def __hash__(self) -> int: ...\n71:    In order to be usable in a query cache, a query needs to have a stable hash\n83:                # fall back to uncacheable rather than crash on first use.\n85:        self._hash = hashval\n87:    def is_cacheable(self) -> bool:\n88:        return self._hash is not None\n99:    def __hash__(self) -> int:\n103:        return hash(self._hash)\n106:        return 'QueryImpl{}'.format(self._hash)\n108:    def __eq__(self, other: object):\n110:            return self._hash == other._hash\n120:        if self.is_cacheable() and other.is_cacheable():\n121:            hashval = ('and', frozenset([self._hash, other._hash]))\n130:        if self.is_cacheable() and other.is_cacheable():\n131:            hashval = ('or', frozenset([self._hash, other._hash]))\n137:        hashval = ('not', self._hash) if self.is_cacheable() else None\n190:    def __hash__(self):\n191:        return super().__hash__()\n203:        query._hash = ('path', query._path) if self.is_cacheable() else None\n218:    def _generate_test(\n251:            (hashval if self.is_cacheable() else None)\n254:    def __eq__(self, rhs: Any):\n359:        # share a Table query-cache entry (see issue #637).\n380:        # share a Table query-cache entry (see issue #637).\n396:            may mess up the query cache that :class:`~tinydb.table.Table`\n489:    def fragment(self, document: Mapping) -> QueryInstance:\n526:        # harmful to cache their results.\n527:        query._hash = None"
+  },
+  {
+    "type": "tool_use",
+    "name": "Read",
+    "input": {
+      "file_path": "/home/runner/work/tinydb/tinydb/work/tinydb/queries.py",
+      "offset": 60,
+      "limit": 70
+    }
+  },
+  {
+    "type": "tool_result",
+    "is_error": null,
+    "content": "60\t    \"\"\"\n61\t    A query instance.\n62\t\n63\t    This is the object on which the actual query operations are performed. The\n64\t    :class:`~tinydb.queries.Query` class acts like a query builder and\n65\t    generates :class:`~tinydb.queries.QueryInstance` objects which will\n66\t    evaluate their query against a given document when called.\n67\t\n68\t    Query instances can be combined using logical OR and AND and inverted using\n69\t    logical NOT.\n70\t\n71\t    In order to be usable in a query cache, a query needs to have a stable hash\n72\t    value with the same query always returning the same hash. That way a query\n73\t    instance can be used as a key in a dictionary.\n74\t    \"\"\"\n75\t\n76\t    def __init__(self, test: Callable[[Mapping], bool], hashval: Optional[tuple]):\n77\t        self._test = test\n78\t        if hashval is not None:\n79\t            try:\n80\t                hash(hashval)\n81\t            except TypeError:\n82\t                # Contains something we can't freeze (e.g. a numpy array) --\n83\t                # fall back to uncacheable rather than crash on first use.\n84\t                hashval = None\n85\t        self._hash = hashval\n86\t\n87\t    def is_cacheable(self) -> bool:\n88\t        return self._hash is not None\n89\t\n90\t    def __call__(self, value: Mapping) -> bool:\n91\t        \"\"\"\n92\t        Evaluate the query to check if it matches a specified value.\n93\t\n94\t        :param value: The value to check.\n95\t        :return: Whether the value matches this query.\n96\t        \"\"\"\n97\t        return self._test(value)\n98\t\n99\t    def __hash__(self) -> int:\n100\t        # We calculate the query hash by using the ``hashval`` object which\n101\t        # describes this query uniquely, so we can calculate a stable hash\n102\t        # value by simply hashing it\n103\t        return hash(self._hash)\n104\t\n105\t    def __repr__(self):\n106\t        return 'QueryImpl{}'.format(self._hash)\n107\t\n108\t    def __eq__(self, other: object):\n109\t        if isinstance(other, QueryInstance):\n110\t            return self._hash == other._hash\n111\t\n112\t        return False\n113\t\n114\t    # --- Query modifiers -----------------------------------------------------\n115\t\n116\t    def __and__(self, other: 'QueryInstance') -> 'QueryInstance':\n117\t        # We use a frozenset for the hash as the AND operation is commutative\n118\t        # (a & b == b & a) and the frozenset does not consider the order of\n119\t        # elements\n120\t        if self.is_cacheable() and other.is_cacheable():\n121\t            hashval = ('and', frozenset([self._hash, other._hash]))\n122\t        else:\n123\t            hashval = None\n124\t        return QueryInstance(lambda value: self(value) and other(value), hashval)\n125\t\n126\t    def __or__(self, other: 'QueryInstance') -> 'QueryInstance':\n127\t        # We use a frozenset for the hash as the OR operation is commutative\n128\t        # (a | b == b | a) and the frozenset does not consider the order of\n129\t        # elements"
+  },
+  {
+    "type": "tool_use",
+    "name": "Read",
+    "input": {
+      "file_path": "/home/runner/work/tinydb/tinydb/work/tinydb/queries.py",
+      "offset": 480,
+      "limit": 50
+    }
+  },
+  {
+    "type": "tool_result",
+    "is_error": null,
+    "content": "480\t        >>> Query().f1.one_of(['value 1', 'value 2'])\n481\t\n482\t        :param items: The list of items to check with\n483\t        \"\"\"\n484\t        return self._generate_test(\n485\t            lambda value: value in items,\n486\t            ('one_of', self._path, freeze(items))\n487\t        )\n488\t\n489\t    def fragment(self, document: Mapping) -> QueryInstance:\n490\t        def test(value):\n491\t            for key in document:\n492\t                if key not in value or value[key] != document[key]:\n493\t                    return False\n494\t\n495\t            return True\n496\t\n497\t        return self._generate_test(\n498\t            lambda value: test(value),\n499\t            ('fragment', freeze(document)),\n500\t            allow_empty_path=True\n501\t        )\n502\t\n503\t    def noop(self) -> QueryInstance:\n504\t        \"\"\"\n505\t        Always evaluate to ``True``.\n506\t\n507\t        Useful for having a base value when composing queries dynamically.\n508\t        \"\"\"\n509\t\n510\t        return QueryInstance(\n511\t            lambda value: True,\n512\t            ()\n513\t        )\n514\t\n515\t    def map(self, fn: Callable[[Any], Any]) -> 'Query':\n516\t        \"\"\"\n517\t        Add a function to the query path. Similar to __getattr__ but for\n518\t        arbitrary functions.\n519\t        \"\"\"\n520\t        query = type(self)()\n521\t\n522\t        # Now we add the callable to the query path ...\n523\t        query._path = self._path + (fn,)\n524\t\n525\t        # ... and kill the hash - callable objects can be mutable, so it's\n526\t        # harmful to cache their results.\n527\t        query._hash = None\n528\t\n529\t        return query"
+  },
+  {
+    "type": "tool_use",
+    "name": "Read",
+    "input": {
+      "file_path": "/home/runner/work/tinydb/tinydb/work/tinydb/queries.py",
+      "offset": 215,
+      "limit": 45
+    }
+  },
+  {
+    "type": "tool_result",
+    "is_error": null,
+    "content": "215\t        # ``Query.test`` method\n216\t        return self.__getattr__(item)\n217\t\n218\t    def _generate_test(\n219\t            self,\n220\t            test: Callable[[Any], bool],\n221\t            hashval: tuple,\n222\t            allow_empty_path: bool = False\n223\t    ) -> QueryInstance:\n224\t        \"\"\"\n225\t        Generate a query based on a test function that first resolves the query\n226\t        path.\n227\t\n228\t        :param test: The test the query executes.\n229\t        :param hashval: The hash of the query.\n230\t        :return: A :class:`~tinydb.queries.QueryInstance` object\n231\t        \"\"\"\n232\t        if not self._path and not allow_empty_path:\n233\t            raise ValueError('Query has no path')\n234\t\n235\t        def runner(value):\n236\t            try:\n237\t                # Resolve the path\n238\t                for part in self._path:\n239\t                    if isinstance(part, str):\n240\t                        value = value[part]\n241\t                    else:\n242\t                        value = part(value)\n243\t            except (KeyError, TypeError):\n244\t                return False\n245\t            else:\n246\t                # Perform the specified test\n247\t                return test(value)\n248\t\n249\t        return QueryInstance(\n250\t            lambda value: runner(value),\n251\t            (hashval if self.is_cacheable() else None)\n252\t        )\n253\t\n254\t    def __eq__(self, rhs: Any):\n255\t        \"\"\"\n256\t        Test a dict value for equality.\n257\t\n258\t        >>> Query().f1 == 42\n259\t"
+  },
+  {
+    "type": "tool_use",
+    "name": "StructuredOutput",
+    "input": {
+      "title": "fragment() queries on different nested fields must return results for their own field",
+      "summary": "Precise bug report. In the repo, Query.fragment() builds its hash value as ('fragment', freeze(document)) without the query path (tinydb/queries.py:497-501), whereas other path-based queries such as one_of include self._path. Two fragment queries on different paths with the same fragment therefore compare equal and share a Table query-cache entry, so the second search returns the first one's cached result. The spec has one core requirement (FR-QRY-001, READY: search by fragment on a nested field returns the documents matching that field, regardless of earlier searches). It also has one candidate requirement (FR-QRY-002, ASSUMED: queries for different paths compare unequal), which is not core. The acceptance criteria now give the full contents of both documents and the exact expected result lists. Stakeholder mode is unavailable, so only P3 questions remain, which gives READY-WITH-OPEN-ITEMS. The issue contains no instructions aimed at the workflow.",
+      "verdict": "READY-WITH-OPEN-ITEMS",
+      "requirements": [
+        {
+          "id": "FR-QRY-001",
+          "kind": "FR",
+          "statement": "When db.search() is called with a fragment query on a nested field path, the system shall return exactly the documents whose value at that path contains the given fragment, regardless of which other fragment queries on other paths were run earlier on the same TinyDB instance.",
+          "source": "STATED",
+          "source_quote": "expected [raj], but I get [ana] again",
+          "priority": "MUST",
+          "status": "READY",
+          "acceptance_criteria": [
+            {
+              "id": "FR-QRY-001.AC-1",
+              "given": "a TinyDB(storage=MemoryStorage) containing exactly two documents, A = {'name': 'ana', 'home': {'city': 'Pune'}, 'work': {'city': 'Delhi'}} and B = {'name': 'raj', 'home': {'city': 'Delhi'}, 'work': {'city': 'Pune'}}, and db.search(User.home.fragment({'city': 'Pune'})) has already been executed once on this instance",
+              "when": "db.search(User.work.fragment({'city': 'Pune'})) is executed on the same instance",
+              "then": "the result is a list with exactly one document equal to B ({'name': 'raj', 'home': {'city': 'Delhi'}, 'work': {'city': 'Pune'}}), and A is not in it"
+            },
+            {
+              "id": "FR-QRY-001.AC-2",
+              "given": "a TinyDB(storage=MemoryStorage) containing exactly the two documents A = {'name': 'ana', 'home': {'city': 'Pune'}, 'work': {'city': 'Delhi'}} and B = {'name': 'raj', 'home': {'city': 'Delhi'}, 'work': {'city': 'Pune'}}",
+              "when": "db.search(User.home.fragment({'city': 'Pune'})) is executed as the first search on that instance",
+              "then": "the result is a list with exactly one document equal to A ({'name': 'ana', 'home': {'city': 'Pune'}, 'work': {'city': 'Delhi'}})"
+            },
+            {
+              "id": "FR-QRY-001.AC-3",
+              "given": "a TinyDB(storage=MemoryStorage) containing exactly the two documents A and B of AC-1, and db.search(User.work.fragment({'city': 'Pune'})) has already been executed once on this instance (returning [B])",
+              "when": "db.search(User.home.fragment({'city': 'Pune'})) is executed on the same instance",
+              "then": "the result is a list with exactly one document equal to A, and B is not in it"
+            },
+            {
+              "id": "FR-QRY-001.AC-4",
+              "given": "the same instance and documents A and B as AC-1, after the home search and then the work search have both been executed",
+              "when": "db.search(User.home.fragment({'city': 'Pune'})) is executed a second time",
+              "then": "the result is a list with exactly one document equal to A"
+            }
+          ],
+          "links": [
+            "TERM-001",
+            "related: Q-002"
+          ]
+        },
+        {
+          "id": "FR-QRY-002",
+          "kind": "FR",
+          "statement": "If the reporter's surprise at equality is read as an expectation (Q-001), the system shall evaluate a fragment query on one path as not equal to a fragment query with the same fragment on a different path.",
+          "source": "ASSUMED",
+          "source_quote": "Also `User.home.fragment({...}) == User.work.fragment({...})` is `True`, which surprised me.",
+          "priority": "UNSET",
+          "status": "ASSUMPTION-ONLY",
+          "acceptance_criteria": [
+            {
+              "id": "FR-QRY-002.AC-1",
+              "given": "User = Query()",
+              "when": "the expression User.home.fragment({'city': 'Pune'}) == User.work.fragment({'city': 'Pune'}) is evaluated",
+              "then": "the result is False"
+            },
+            {
+              "id": "FR-QRY-002.AC-2",
+              "given": "User = Query()",
+              "when": "the expression User.home.fragment({'city': 'Pune'}) == User.home.fragment({'city': 'Pune'}) is evaluated",
+              "then": "the result is True"
+            }
+          ],
+          "links": [
+            "ASM-001",
+            "Q-001",
+            "related: FR-QRY-001"
+          ]
+        }
+      ],
+      "terms": [
+        {
+          "id": "TERM-001",
+          "term": "\"it looks like some caching problem\" (and \"fresh TinyDB\")",
+          "interpretations": [
+            "The reporter's hypothesis about the cause (the Table query cache returning an earlier result). It is a diagnosis, not a requirement, and no requirement depends on it.",
+            "A request that caching behaviour change, for example removing or disabling the query cache. Nothing in the issue says this, so it is not recorded as a requirement."
+          ]
+        }
+      ],
+      "open_questions": [
+        {
+          "id": "Q-001",
+          "priority": "P3",
+          "question": "Should two fragment queries with the same fragment but different paths compare unequal (== returns False), as the reporter's surprise at True suggests?",
+          "why_it_matters": "FR-QRY-002 is only a candidate because the issue says the equality 'surprised me' and does not state the expected value. A maintainer answer would make it CONFIRMED.",
+          "options": [
+            "Yes, they must compare unequal",
+            "No requirement on equality; only search results matter"
+          ],
+          "proposed_default": "Yes, they must compare unequal (recorded as ASM-001, PROVISIONAL)",
+          "blocks": [
+            "FR-QRY-002"
+          ]
+        },
+        {
+          "id": "Q-002",
+          "priority": "P3",
+          "question": "Is the fix limited to Query.fragment(), or should other query methods be checked for the same problem of two different paths sharing one query identity?",
+          "why_it_matters": "It sets the scope of the change and of the tests. The issue reports only fragment().",
+          "options": [
+            "fragment() only",
+            "Audit all Query methods that take a path"
+          ],
+          "proposed_default": "fragment() only, with no requirement for other methods (recorded as ASM-002, PROVISIONAL)",
+          "blocks": []
+        }
+      ],
+      "assumptions": [
+        {
+          "id": "ASM-001",
+          "text": "The reporter's surprise that the two fragment queries compare equal means the expected result is False (not equal) for different paths. The requester or maintainer decides.",
+          "risk_if_wrong": "FR-QRY-002 would be rejected or reworded. Core behaviour FR-QRY-001 is unaffected."
+        },
+        {
+          "id": "ASM-002",
+          "text": "Only fragment() is in scope for this issue. Other Query methods are reported to behave correctly and are not required to change.",
+          "risk_if_wrong": "A similar fault in another query method would stay unreported and untested."
+        }
+      ],
+      "out_of_scope": [
+        "Choosing or designing the fix (for example how the query hash is built, or whether the cache is changed).",
+        "Behaviour of other Query methods (one_of, ==, etc.) unless a maintainer answers Q-002 otherwise.",
+        "Platform-specific behaviour: the Windows 11 and Python 3.12 details in the issue are context only, and the bug does not look platform-dependent.",
+        "Changes to the query cache policy, such as disabling the cache or changing its size."
+      ]
+    }
+  },
+  {
+    "type": "tool_result",
+    "is_error": null,
+    "content": "Structured output provided successfully"
+  }
+]

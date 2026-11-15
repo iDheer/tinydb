@@ -1,47 +1,46 @@
 # design.md
 
-Add the query path to the hash of Query.fragment() so fragment queries on different paths no longer share a hash, compare equal, or collide in the Table query cache. This is a one-line change in tinydb/queries.py.
+Include the query path (self._path) in the hash value built by Query.fragment() so fragment queries on different paths no longer compare equal or share a Table query-cache entry.
 
 ## Approach
 
-Query.fragment() builds its hash as ('fragment', freeze(document)) and leaves out self._path. Every sibling method (exists, matches, search, test, any, all, one_of) uses (tag, self._path, ...). QueryInstance equality and hashing use the hash value, and Table.search uses the query as its LRUCache key. So User.home.fragment(x) and User.work.fragment(x) are treated as the same query, and the second search gets the first one's cached result. The fix changes the hash to ('fragment', self._path, freeze(document)). This matches the other methods and constraint C2. Path resolution in _generate_test is unchanged. Root-level Query().fragment({...}) has an empty path (), which is hashable, so it keeps working. A path that contains a callable (from map()) still makes is_cacheable() return False, and _generate_test then sets the hash to None, as before. The change fixes AC-1 to AC-3 of FR-QFRAG-001 and also the candidate FR-QFRAG-002 (unequal queries on different paths, equal queries on the same path), since both depend on the hash.
+In tinydb/queries.py, change the hash tuple in Query.fragment from ('fragment', freeze(document)) to ('fragment', self._path, freeze(document)), the same shape one_of uses ('one_of', self._path, freeze(items)). This is a one-line change. _generate_test already substitutes None when the query is not cacheable (path contains a callable from map()), and self._path is a tuple of str/callables, so it is hashable like in one_of. An empty path (allow_empty_path=True, e.g. Query().fragment(...)) gives (), which is still valid and distinct from non-empty paths. Fixing the hash fixes both the cache collision (FR-QRY-001) and equality (FR-QRY-002), since QueryInstance.__eq__ compares _hash.
 
 ## Files and symbols to change
 
 | File | Change | Symbol | Kind | Symbol change | What |
 |---|---|---|---|---|---|
-| `tinydb/queries.py` | modify | `Query.fragment` | method | modify | Change the hash passed to _generate_test from ('fragment', freeze(document)) to ('fragment', self._path, freeze(document)). Keep allow_empty_path=True and the test logic unchanged. |
+| `tinydb/queries.py` | modify | `Query.fragment` | method | modify | Change hashval passed to _generate_test to ('fragment', self._path, freeze(document)); the test logic and allow_empty_path=True stay unchanged. |
 
 ## Acceptance criteria → code → test
 
 | AC | Symbols | Test idea |
 |---|---|---|
-| FR-QFRAG-001.AC-1 | Query.fragment, Query._generate_test | Use TinyDB(storage=MemoryStorage) with the ana and raj documents. Run db.search(User.home.fragment({'city':'Pune'})), then db.search(User.work.fragment({'city':'Pune'})) on the same instance. Assert the second result is a list with only the document named 'raj'. |
-| FR-QFRAG-001.AC-2 | Query.fragment | On a fresh TinyDB(MemoryStorage) with the two documents, run only db.search(User.work.fragment({'city':'Pune'})). Assert the result contains only 'raj'. |
-| FR-QFRAG-001.AC-3 | Query.fragment | On the same instance, run the work search first, then db.search(User.home.fragment({'city':'Pune'})). Assert the second result contains only 'ana'. |
-| FR-QFRAG-002.AC-1 | Query.fragment, QueryInstance.__eq__, QueryInstance.__hash__ | Assert User.home.fragment({'city':'Pune'}) == User.work.fragment({'city':'Pune'}) is False, and that their hash() values differ. |
-| FR-QFRAG-002.AC-2 | Query.fragment, QueryInstance.__eq__, QueryInstance.__hash__ | Assert User.home.fragment({'city':'Pune'}) == User.home.fragment({'city':'Pune'}) is True and that their hashes are equal. |
+| FR-QRY-001.AC-1 | Query.fragment | MemoryStorage db with A and B; search home.fragment({'city':'Pune'}) then work.fragment(same); assert the second result == [B] and A is not in it. |
+| FR-QRY-001.AC-2 | Query.fragment | Fresh db with A and B; first search User.home.fragment({'city':'Pune'}) returns exactly [A]. |
+| FR-QRY-001.AC-3 | Query.fragment | Search work.fragment first (gives [B]), then home.fragment; assert the result == [A] and B is not in it. |
+| FR-QRY-001.AC-4 | Query.fragment | Run home, then work, then home again on the same db; assert the final result == [A]. |
+| FR-QRY-002.AC-1 | Query.fragment | Assert (User.home.fragment({'city':'Pune'}) == User.work.fragment({'city':'Pune'})) is False. |
+| FR-QRY-002.AC-2 | Query.fragment | Assert User.home.fragment({'city':'Pune'}) == User.home.fragment({'city':'Pune'}) is True, and that the two hashes are equal. |
 
 ## Architecture constraints (ARCHITECTURE.md)
 
-- C2: The fragment hash now holds the operation tag, the path and the frozen argument, as C2 requires. Hash None is still used for non-cacheable queries (map() paths) through _generate_test. The path is still resolved by _generate_test.
-- C4: queries.py keeps importing only utils, and no new imports are added. Table, database and storages are not touched.
-- C5: No new dependency is added. The change uses only tuple composition with existing names.
-- C3: Table and _update_table are not changed, so the cache is still cleared on writes as before.
+- C2: The fragment hash now holds the operation tag, the path and the frozen argument, as C2 requires. It is still built via _generate_test, which sets it to None when the query is not cacheable.
+- C4: Only queries.py changes. It still imports only utils (freeze) and gains no new imports.
+- C5: No new dependencies; the change uses only existing code.
+- C3: Table and _update_table are untouched; cache invalidation on writes is unchanged.
 
 ## Alternatives considered
 
-- Make Table.search/count build its cache key from something other than the query hash, for example by also including the query's path: Query objects are the cache key by design (ADR-3), and Table must not know query internals. The bug is an incomplete hash in one Query method, so the fix belongs there.
-- Disable caching for fragment queries by setting the hash to None: This would fix the results but lose caching for fragment queries, and it would not give equal queries on the same path the same hash or make queries on different paths compare unequal. It also goes against C2, which says to include the path and all arguments in the hash.
-- Audit and change all other Query methods too (Q-002 option b): The other methods already include self._path in their hashes, and the spec's default scope is fragment() only. Making the change wider is not needed.
-- Clear the query cache on every search: This removes the cache feature and works around the problem instead of fixing the hash.
+- Disable or clear the query cache (or key it differently in Table.search): Out of scope per the spec, and it breaks ADR-3, which says the query's hash must carry its full meaning. The bug is in the hash, not the cache.
+- Audit and fix all Query methods that take a path: ASM-002/Q-002 limit the scope to fragment(). Other methods such as one_of already include self._path.
+- Change _generate_test to inject self._path into every hashval automatically: A larger refactor that would alter hashes of every existing query. It is not needed for this bug.
 
 ## Risks
 
-- The spec marks FR-QFRAG-002 as an unconfirmed assumption (Q-001, priority P3). The fix delivers it anyway, because the hash change makes the queries unequal. If the maintainer wants the queries to stay equal, that would conflict with ADR-3, so this is unlikely.
-- The fix changes the fragment hash shape, from a 2-tuple to a 3-tuple. Any existing test or user code that compares a fragment query's _hash to a literal tuple would break. A search of the repo's existing tests is advisable, but no such use is known.
-- The root-level query Query().fragment({...}) now has the hash ('fragment', (), frozen). This stays consistent and hashable. A root query that is equal in both ways is only equal to another root query with the same fragment.
-- Q-002 (other Query methods and deeper paths) is not examined beyond reading the source. Reading queries.py shows the other methods already include self._path, so no further change is planned. Deeper paths are covered because the whole _path tuple is hashed.
+- The spec's FR-QRY-002 is only an ASSUMPTION-ONLY candidate (priority UNSET), but the fix satisfies it anyway, so there is no conflict.
+- Hash tuples change shape for fragment queries, so any code or test that compares against the literal tuple ('fragment', frozen) would break. A grep found none in the source files read, but the existing tests were not checked.
+- Other path-based queries (e.g. matches, search, test, any/all) were not audited, per Q-002. Query.test builds its hash from the function and arguments, and the remaining methods were not inspected for a similar missing path.
 
 ## Stage check: PASSED
 

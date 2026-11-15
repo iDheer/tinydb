@@ -1,0 +1,258 @@
+{
+  "label": "planner-spec.0",
+  "role": "planner",
+  "ok": true,
+  "cost_usd": 0.07253,
+  "usage": {
+    "input_tokens": 6,
+    "cache_creation_input_tokens": 3752,
+    "cache_read_input_tokens": 63652,
+    "output_tokens": 5677,
+    "output_tokens_details": {
+      "thinking_tokens": 1953
+    },
+    "server_tool_use": {
+      "web_search_requests": 0,
+      "web_fetch_requests": 0
+    },
+    "service_tier": "standard",
+    "cache_creation": {
+      "ephemeral_1h_input_tokens": 0,
+      "ephemeral_5m_input_tokens": 3752
+    },
+    "inference_geo": "global",
+    "iterations": [],
+    "speed": "standard",
+    "fallback_credit": null
+  },
+  "num_turns": 5,
+  "duration_s": 40.7,
+  "error": "",
+  "denials": 0,
+  "model": "claude-sonnet-5-5",
+  "tool_calls": [
+    {
+      "tool": "Grep",
+      "args": {
+        "pattern": "def fragment|def _generate_test|_hash|def __hash__|def __eq__",
+        "path": "/home/runner/work/tinydb/tinydb/work/tinydb/queries.py",
+        "output_mode": "content",
+        "-n": true
+      },
+      "allowed": true,
+      "reason": "read inside working tree"
+    },
+    {
+      "tool": "Read",
+      "args": {
+        "file_path": "/home/runner/work/tinydb/tinydb/work/tinydb/queries.py",
+        "offset": 210,
+        "limit": 50
+      },
+      "allowed": true,
+      "reason": "read inside working tree"
+    },
+    {
+      "tool": "Read",
+      "args": {
+        "file_path": "/home/runner/work/tinydb/tinydb/work/tinydb/queries.py",
+        "offset": 485,
+        "limit": 30
+      },
+      "allowed": true,
+      "reason": "read inside working tree"
+    },
+    {
+      "tool": "StructuredOutput",
+      "args": {
+        "title": "fragment() queries on different nested paths must not share results",
+        "summary": "Precise bug report with a runnable reproduction. In tinydb/queries.py, Query.fragment builds its query hash as ('fragment', freeze(document)) and leaves out self._path (queries.py:499). The neighbouring one_of includes self._path (queries.py:486). The hash/equality/cache key is therefore the same fo…",
+        "verdict": "READY-WITH-OPEN-ITEMS",
+        "requirements": [
+          {
+            "id": "FR-QRY-001",
+            "kind": "FR",
+            "statement": "The system shall return, for db.search(User.work.fragment({'city': 'Pune'})), exactly the documents whose 'work' field contains the fragment, even when db.search(User.home.fragment({'city': 'Pune'})) was executed earlier on the same TinyDB instance.",
+            "source": "STATED",
+            "source_quote": "expected [raj], but I get [ana] again",
+            "priority": "UNSET",
+            "status": "READY",
+            "acceptance_criteria": [
+              {
+                "id": "FR-QRY-001.AC-1",
+                "given": "a TinyDB(storage=MemoryStorage) holding {'name':'ana','home':{'city':'Pune'},'work':{'city':'Delhi'}} and {'name':'raj','home':{'city':'Delhi'},'work':{'city':'Pune'}}, and db.search(User.home.fragment({'city':'Pune'})) has already been executed once",
+                "when": "db.search(User.work.fragment({'city':'Pune'})) is called on the same db",
+                "then": "the result equals [{'name':'raj','home':{'city':'Delhi'},'work':{'city':'Pune'}}]"
+              },
+              {
+                "id": "FR-QRY-001.AC-2",
+                "given": "the same two documents in a db on which no earlier search has been executed",
+                "when": "db.search(User.work.fragment({'city':'Pune'})) is called",
+                "then": "the result equals [{'name':'raj','home':{'city':'Delhi'},'work':{'city':'Pune'}}]"
+              },
+              {
+                "id": "FR-QRY-001.AC-3",
+                "given": "the same two documents in a db on which db.search(User.work.fragment({'city':'Pune'})) has already been executed once",
+                "when": "db.search(User.home.fragment({'city':'Pune'})) is called on the same db",
+                "then": "the result equals [{'name':'ana','home':{'city':'Pune'},'work':{'city':'Delhi'}}]"
+              }
+            ],
+            "links": [
+              "related: Q-001",
+              "related: RSK-001",
+              "related: TERM-001"
+            ]
+          },
+          {
+            "id": "FR-QRY-002",
+            "kind": "FR",
+            "statement": "The system shall return, for db.search(User.home.fragment({'city': 'Pune'})), exactly the documents whose 'home' field contains the fragment.",
+            "source": "STATED",
+            "source_quote": "print(db.search(User.home.fragment({'city': 'Pune'})))  # [ana] -> correct",
+            "priority": "MUST",
+            "status": "READY",
+            "acceptance_criteria": [
+              {
+                "id": "FR-QRY-002.AC-1",
+                "given": "a TinyDB(storage=MemoryStorage) holding the ana and raj documents from the issue and no earlier search",
+                "when": "db.search(User.home.fragment({'city':'Pune'})) is called",
+                "then": "the result equals [{'name':'ana','home':{'city':'Pune'},'work':{'city':'Delhi'}}]"
+              }
+            ],
+            "links": [
+              "related: FR-QRY-001"
+            ]
+          },
+          {
+            "id": "FR-QRY-003",
+            "kind": "FR",
+            "statement": "If the maintainers accept it (Q-001), then two fragment queries built on different paths with an equal fragment document shall not compare equal and shall not have equal hashes.",
+            "source": "ASSUMED",
+            "source_quote": "`User.home.fragment({...}) == User.work.fragment({...})` is `True`, which surprised me.",
+            "priority": "UNSET",
+            "status": "ASSUMPTION-ONLY",
+            "acceptance_criteria": [
+              {
+                "id": "FR-QRY-003.AC-1",
+                "given": "User = Query()",
+                "when": "User.home.fragment({'city':'Pune'}) == User.work.fragment({'city':'Pune'}) is evaluated",
+                "then": "the result is False"
+              },
+              {
+                "id": "FR-QRY-003.AC-2",
+                "given": "User = Query()",
+                "when": "hash(User.home.fragment({'city':'Pune'})) and hash(User.work.fragment({'city':'Pune'})) are computed",
+                "then": "the two values are different"
+              }
+            ],
+            "links": [
+              "ASM-001",
+              "Q-001",
+              "RSK-001"
+            ]
+          },
+          {
+            "id": "FR-QRY-004",
+            "kind": "FR",
+            "statement": "If the maintainers accept it (Q-002), then two fragment queries built on the same path with equal fragment documents shall still compare equal, so that repeated identical searches can be served from the query cache.",
+            "source": "ASSUMED",
+            "source_quote": "it looks like some caching problem",
+            "priority": "UNSET",
+            "status": "ASSUMPTION-ONLY",
+            "acceptance_criteria": [
+              {
+                "id": "FR-QRY-004.AC-1",
+                "given": "User = Query()",
+                "when": "User.home.fragment({'city':'Pune'}) == User.home.fragment({'city':'Pune'}) is evaluated",
+                "then": "the result is True"
+              },
+              {
+                "id": "FR-QRY-004.AC-2",
+                "given": "User = Query()",
+                "when": "User.fragment({'city':'Pune'}) == User.fragment({'city':'Delhi'}) is evaluated",
+                "then": "the result is False"
+              }
+            ],
+            "links": [
+              "ASM-002",
+              "Q-002"
+            ]
+          }
+        ],
+        "terms": [
+          {
+            "id": "TERM-001",
+            "term": "caching problem (reporter's diagnosis)",
+            "interpretations": [
+              "The query-result cache of the table returns an entry stored for a different query. This is consistent with the code, because the cache key is derived from the query hash.",
+              "The storage layer or document cache is stale. The issue gives no evidence for this."
+            ]
+          },
+          {
+            "id": "TERM-002",
+            "term": "fragment (query)",
+            "interpretations": [
+              "A document-subset match on the value at the query path: every key of the given mapping must exist in the value and be equal. Observed in queries.py:489-501. No ambiguity is blocking, so this is only a glossary note."
+            ]
+          }
+        ],
+        "open_questions": [
+          {
+            "id": "Q-001",
+            "priority": "P3",
+            "question": "Should queries with different paths but an equal fragment document compare unequal and have different hashes? Or is it enough that search results are correct, for example by not caching such queries?",
+            "why_it_matters": "The reporter was only surprised by the equality, and did not state an expectation. The answer decides whether FR-QRY-003 becomes an agreed requirement. FR-QRY-001 does not depend on it.",
+            "options": [
+              "(a) unequal and different hashes, as for other path-aware queries such as one_of",
+              "(b) equality unchanged, only search results fixed"
+            ],
+            "proposed_default": "(a), recorded as ASM-001 (PROVISIONAL)",
+            "blocks": [
+              "FR-QRY-003"
+            ]
+          },
+          {
+            "id": "Q-002",
+            "priority": "P3",
+            "question": "Must fragment queries on the same path with equal documents remain cacheable and equal?",
+            "why_it_matters": "It guards against a fix that disables caching for fragment queries. It would be a performance regression, but the issue does not mention it.",
+            "options": [
+              "(a) yes, remain equal and cacheable",
+              "(b) no requirement"
+            ],
+            "proposed_default": "(a), recorded as ASM-002 (PROVISIONAL)",
+            "blocks": [
+              "FR-QRY-004"
+            ]
+          }
+        ],
+        "assumptions": [
+          {
+            "id": "ASM-001",
+            "text": "Equal fragment documents on different paths should yield unequal queries, consistent with how one_of includes self._path in its hash.",
+            "risk_if_wrong": "FR-QRY-003 would constrain the implementation more than the maintainers want. It would be withdrawn."
+          },
+          {
+            "id": "ASM-002",
+            "text": "Same-path fragment queries with equal documents should remain equal and cacheable.",
+            "risk_if_wrong": "FR-QRY-004 would be withdrawn. The cost is low."
+          },
+          {
+            "id": "ASM-003",
+            "text": "The maintainer (repository owner, who is also the issue author) is the decision owner. No other stakeholder exists.",
+            "risk_if_wrong": "The question owners would change. Scope is unaffected."
+          }
+        ],
+        "out_of_scope": [
+          "Choosing or designing the fix, for example how the hash is built or whether caching is disabled.",
+          "Auditing other Query methods for the same defect. Only fragment and one_of were read, and this spec makes no statement about the others.",
+          "Platform-specific behaviour (Windows 11, Python 3.12). It is context only, and the reproduction uses MemoryStorage.",
+          "Changing fragment's matching semantics, such as nested or partial matching of values.",
+          "Changes to storage backends or to the document cache."
+        ]
+      },
+      "allowed": true,
+      "reason": "final structured answer"
+    }
+  ]
+}
