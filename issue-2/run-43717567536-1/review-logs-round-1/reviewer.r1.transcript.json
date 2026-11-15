@@ -1,0 +1,218 @@
+[
+  {
+    "type": "tool_use",
+    "name": "Bash",
+    "input": {
+      "command": "cat ARCHITECTURE.md | head -80; sed -n 1,60p tinydb/utils.py | grep -n \"def freeze\" ; grep -n \"def freeze\" -A25 tinydb/utils.py; sed -n 470,500p tinydb/queries.py; grep -n \"_hash\\|def __hash__\\|is_cacheable\" tinydb/queries.py | head -30",
+      "description": "Read architecture doc and relevant code"
+    }
+  },
+  {
+    "type": "tool_result",
+    "is_error": true,
+    "content": "PreToolUse:Bash hook error: one plain command per call: no pipes, redirects, chaining or substitution"
+  },
+  {
+    "type": "tool_use",
+    "name": "Read",
+    "input": {
+      "file_path": "/home/runner/work/tinydb/tinydb/work/ARCHITECTURE.md"
+    }
+  },
+  {
+    "type": "tool_result",
+    "is_error": null,
+    "content": "1\t# TinyDB — Architecture\n2\t\n3\tTinyDB is a small, pure-Python, document-oriented database. A database is a single\n4\tPython `dict` of tables (`{table_name: {doc_id: document}}`) that is persisted as a\n5\twhole by a pluggable *storage*. All paths below are relative to the repository root.\n6\t\n7\t## 1. Overview of the main components\n8\t\n9\t| # | Component | File | What it does |\n10\t|---|-----------|------|--------------|\n11\t| 1 | **TinyDB** (database) | `tinydb/database.py` | Entry point. Instantiates the storage from `storage=` (default `JSONStorage`) with all remaining constructor arguments, creates and caches `Table` objects by name, and forwards unknown attributes (`insert`, `search`, …) to the default table `_default`. |\n12\t| 2 | **Table / Document** | `tinydb/table.py` | All document operations (insert, search, get, update, upsert, remove, truncate, count). Reads and writes the *whole* database through the storage, owns a per-table LRU **query cache**, and assigns integer document IDs. `Document` is a `dict` with a `doc_id`. |\n13\t| 3 | **Query / QueryInstance** | `tinydb/queries.py` | Query builder (`Query().field == 1`, `where('f')`). A query is a callable `doc -> bool` plus a **stable hash value** that describes it; queries combine with `&`, `\\|`, `~`. Defines the `QueryLike` protocol that `Table` accepts. |\n14\t| 4 | **Storages** | `tinydb/storages.py` | Abstract `Storage` (`read()` / `write(data)` / optional `close()`), plus `JSONStorage` (file on disk) and `MemoryStorage`. Serialisation lives here and only here. |\n15\t| 5 | **Middlewares** | `tinydb/middlewares.py` | Wrappers that look like a storage *class* to `TinyDB` and wrap a real storage, e.g. `CachingMiddleware`, which keeps the data in memory and writes it through every `WRITE_CACHE_SIZE` writes, on `flush()` or on `close()`. |\n16\t| 6 | **Operations** | `tinydb/operations.py` | Factory functions (`delete`, `add`, `set`, `increment`, …) that return callables mutating a document; passed to `Table.update`. |\n17\t| 7 | **Utils** | `tinydb/utils.py` | `LRUCache` (used as the query cache), `freeze`/`FrozenDict` (make query arguments hashable) and `with_typehint` (typing helper so `TinyDB` looks like a `Table` to IDEs). |\n18\t\n19\t`tinydb/mypy_plugin.py` is a type-checking helper only and is not used at runtime.\n20\t\n21\t**Who calls whom**\n22\t\n23\t- `TinyDB.__init__` calls `storage(*args, **kwargs)`. The result can be a storage or a\n24\t  middleware chain, and it is passed to every `Table` it creates.\n25\t- `Table` calls only `storage.read()` and `storage.write(data)`. It never knows which\n26\t  concrete storage or middleware it is talking to.\n27\t- `Table.search`/`get`/`update`/`remove` call query objects as plain callables and use\n28\t  them as keys in the `LRUCache` query cache. Every write goes through\n29\t  `Table._update_table`, which writes the whole data back and then clears the cache.\n30\t- `Query` uses `utils.freeze` to build hash values. It does not depend on tables or storages.\n31\t- A `Middleware` holds the wrapped storage in `self.storage` and forwards unknown\n32\t  attributes to it.\n33\t\n34\t```mermaid\n35\tflowchart LR\n36\t  User([user code]) --> TinyDB\n37\t  TinyDB -- \"storage(*args, **kwargs)\" --> MW[\"Middleware (optional)<br/>CachingMiddleware\"]\n38\t  MW -- wraps --> ST[\"Storage (ABC)<br/>JSONStorage / MemoryStorage\"]\n39\t  TinyDB -- \"creates / forwards to\" --> Table\n40\t  Table -- \"read() / write(whole dict)\" --> MW\n41\t  Table -- \"read() / write()\" -.-> ST\n42\t  Table -- \"calls cond(doc), uses hash as cache key\" --> Query[\"Query / QueryInstance\"]\n43\t  Table -- \"query cache\" --> LRU[\"utils.LRUCache\"]\n44\t  Table -- \"update(fields=...)\" --> Ops[\"operations\"]\n45\t  Query -- \"freeze() args for hashing\" --> Utils[\"utils.freeze / FrozenDict\"]\n46\t```\n47\t\n48\tImport layering (lower layers never import upper ones):\n49\t`utils` ← `queries`, `storages` ← `table` ← `database`; `middlewares` imports only `Storage`.\n50\t\n51\t## 2. Architecture decision records\n52\t\n53\t### ADR-1: Storages read and wr"
+  },
+  {
+    "type": "tool_use",
+    "name": "Grep",
+    "input": {
+      "pattern": "def freeze",
+      "path": "/home/runner/work/tinydb/tinydb/work/tinydb/utils.py",
+      "output_mode": "content",
+      "-A": 25
+    }
+  },
+  {
+    "type": "tool_result",
+    "is_error": null,
+    "content": "150:def freeze(obj):\n151-    \"\"\"\n152-    Freeze an object by making it immutable and thus hashable.\n153-    \"\"\"\n154-    if isinstance(obj, dict):\n155-        # Transform dicts into ``FrozenDict``s\n156-        return FrozenDict((k, freeze(v)) for k, v in obj.items())\n157-    elif isinstance(obj, list):\n158-        # Transform lists into tuples\n159-        return tuple(freeze(el) for el in obj)\n160-    elif isinstance(obj, tuple):\n161-        # Freeze tuple elements too, so a nested dict/list inside an\n162-        # already-tuple arg (e.g. Query.test's *args) is still hashable\n163-        return tuple(freeze(el) for el in obj)\n164-    elif isinstance(obj, set):\n165-        # Transform sets into ``frozenset``s\n166-        return frozenset(obj)\n167-    else:\n168-        # Don't handle all other objects\n169-        return obj"
+  },
+  {
+    "type": "tool_use",
+    "name": "Read",
+    "input": {
+      "file_path": "/home/runner/work/tinydb/tinydb/work/tinydb/queries.py",
+      "offset": 60,
+      "limit": 200
+    }
+  },
+  {
+    "type": "tool_result",
+    "is_error": null,
+    "content": "60\t    \"\"\"\n61\t    A query instance.\n62\t\n63\t    This is the object on which the actual query operations are performed. The\n64\t    :class:`~tinydb.queries.Query` class acts like a query builder and\n65\t    generates :class:`~tinydb.queries.QueryInstance` objects which will\n66\t    evaluate their query against a given document when called.\n67\t\n68\t    Query instances can be combined using logical OR and AND and inverted using\n69\t    logical NOT.\n70\t\n71\t    In order to be usable in a query cache, a query needs to have a stable hash\n72\t    value with the same query always returning the same hash. That way a query\n73\t    instance can be used as a key in a dictionary.\n74\t    \"\"\"\n75\t\n76\t    def __init__(self, test: Callable[[Mapping], bool], hashval: Optional[tuple]):\n77\t        self._test = test\n78\t        if hashval is not None:\n79\t            try:\n80\t                hash(hashval)\n81\t            except TypeError:\n82\t                # Contains something we can't freeze (e.g. a numpy array) --\n83\t                # fall back to uncacheable rather than crash on first use.\n84\t                hashval = None\n85\t        self._hash = hashval\n86\t\n87\t    def is_cacheable(self) -> bool:\n88\t        return self._hash is not None\n89\t\n90\t    def __call__(self, value: Mapping) -> bool:\n91\t        \"\"\"\n92\t        Evaluate the query to check if it matches a specified value.\n93\t\n94\t        :param value: The value to check.\n95\t        :return: Whether the value matches this query.\n96\t        \"\"\"\n97\t        return self._test(value)\n98\t\n99\t    def __hash__(self) -> int:\n100\t        # We calculate the query hash by using the ``hashval`` object which\n101\t        # describes this query uniquely, so we can calculate a stable hash\n102\t        # value by simply hashing it\n103\t        return hash(self._hash)\n104\t\n105\t    def __repr__(self):\n106\t        return 'QueryImpl{}'.format(self._hash)\n107\t\n108\t    def __eq__(self, other: object):\n109\t        if isinstance(other, QueryInstance):\n110\t            return self._hash == other._hash\n111\t\n112\t        return False\n113\t\n114\t    # --- Query modifiers -----------------------------------------------------\n115\t\n116\t    def __and__(self, other: 'QueryInstance') -> 'QueryInstance':\n117\t        # We use a frozenset for the hash as the AND operation is commutative\n118\t        # (a & b == b & a) and the frozenset does not consider the order of\n119\t        # elements\n120\t        if self.is_cacheable() and other.is_cacheable():\n121\t            hashval = ('and', frozenset([self._hash, other._hash]))\n122\t        else:\n123\t            hashval = None\n124\t        return QueryInstance(lambda value: self(value) and other(value), hashval)\n125\t\n126\t    def __or__(self, other: 'QueryInstance') -> 'QueryInstance':\n127\t        # We use a frozenset for the hash as the OR operation is commutative\n128\t        # (a | b == b | a) and the frozenset does not consider the order of\n129\t        # elements\n130\t        if self.is_cacheable() and other.is_cacheable():\n131\t            hashval = ('or', frozenset([self._hash, other._hash]))\n132\t        else:\n133\t            hashval = None\n134\t        return QueryInstance(lambda value: self(value) or other(value), hashval)\n135\t\n136\t    def __invert__(self) -> 'QueryInstance':\n137\t        hashval = ('not', self._hash) if self.is_cacheable() else None\n138\t        return QueryInstance(lambda value: not self(value), hashval)\n139\t\n140\t\n141\tclass Query(QueryInstance):\n142\t    \"\"\"\n143\t    TinyDB Queries.\n144\t\n145\t    Allows building queries for TinyDB databases. There are two main ways of\n146\t    using queries:\n147\t\n148\t    1) ORM-like usage:\n149\t\n150\t    >>> User = Query()\n151\t    >>> db.search(User.name == 'John Doe')\n152\t    >>> db.search(User['logged-in'] == True)\n153\t\n154\t    2) Classical usage:\n155\t\n156\t    >>> db.search(where('value') == True)\n157\t\n158\t    Note that ``where(...)`` is a shorthand for ``Query(...)`` allowing for\n159\t    a more fluent syntax.\n160\t\n161\t    Besides the methods documented here you"
+  },
+  {
+    "type": "tool_use",
+    "name": "Bash",
+    "input": {
+      "command": "python -m pytest -q",
+      "description": "Run full test suite"
+    }
+  },
+  {
+    "type": "tool_result",
+    "is_error": false,
+    "content": "============================= test session starts ==============================\nplatform linux -- Python 3.12.16, pytest-9.2.0, pluggy-1.7.0\nrootdir: /home/runner/work/tinydb/tinydb/work\nconfigfile: pytest.ini\nplugins: cov-7.1.0, anyio-4.16.0\ncollected 234 items\n\ntests/test_autose_issue_2.py ......                                      [  2%]\ntests/test_middlewares.py .........                                      [  6%]\ntests/test_operations.py ..............                                  [ 12%]\ntests/test_queries.py ..................................                 [ 26%]\ntests/test_storages.py ..............                                    [ 32%]\ntests/test_tables.py ...............................                     [ 46%]\ntests/test_tinydb.py ................................................... [ 67%]\n...............................................................          [ 94%]\ntests/test_utils.py ............                                         [100%]\n\n================================ tests coverage ================================\n_______________ coverage: platform linux, python 3.12.16-final-0 _______________\n\nName                    Stmts   Miss Branch BrPart  Cover\n---------------------------------------------------------\ntinydb/__init__.py          5      0      0      0   100%\ntinydb/database.py         53      0     10      0   100%\ntinydb/middlewares.py      44      3     14      3    90%\ntinydb/mypy_plugin.py      26     26      2      0     0%\ntinydb/operations.py       26      0      0      0   100%\ntinydb/queries.py         132      2     32      4    96%\ntinydb/storages.py         57      0      8      0   100%\ntinydb/table.py           241      1    104      8    97%\ntinydb/utils.py            78      1     18      1    98%\ntinydb/version.py           1      0      0      0   100%\n---------------------------------------------------------\nTOTAL                     663     33    188     16    94%\n============================= 234 passed in 1.34s =============================="
+  },
+  {
+    "type": "tool_use",
+    "name": "Write",
+    "input": {
+      "file_path": "/home/runner/work/_temp/autose/review-scratch/probe_one_of.py",
+      "content": "from tinydb import TinyDB, Query\nfrom tinydb.storages import MemoryStorage\n\ndb = TinyDB(storage=MemoryStorage)\ndb.insert_multiple([{'tag': 'a'}, {'tag': 'b'}, {'tag': 'a'}, {'tag': 'c'}])\nQ = Query()\n\n# Issue example\nr = db.search(Q.tag.one_of(t for t in ['a', 'b']))\nassert r == [{'tag': 'a'}, {'tag': 'b'}, {'tag': 'a'}], r\n\n# Same query object reused across searches (cache hit and after a write)\nq = Q.tag.one_of(t for t in ['a', 'b'])\nassert len(db.search(q)) == 3\nassert len(db.search(q)) == 3\ndb.insert({'tag': 'b'})\nassert len(db.search(q)) == 4\nassert db.count(q) == 4\n\n# Different generator contents must not share a cache entry\nq1 = Q.tag.one_of(x for x in ['a'])\nq2 = Q.tag.one_of(x for x in ['c'])\nassert q1 != q2 and hash(q1) != hash(q2) or q1._hash != q2._hash\nassert len(db.search(q1)) == 2\nassert len(db.search(q2)) == 1, db.search(q2)\n\n# Same contents -> equal to list query (same meaning)\nassert Q.tag.one_of(iter(['a', 'b'])) == Q.tag.one_of(['a', 'b'])\n\n# Empty generator\nassert db.search(Q.tag.one_of(x for x in [])) == []\n\n# map / iter / filter objects\nassert len(db.search(Q.tag.one_of(map(str.lower, ['A'])))) == 2\nassert len(db.search(Q.tag.one_of(filter(lambda s: s == 'c', 'abc')))) == 1\n\n# Generator of unhashable items (dicts) still works and is cacheable\ndb2 = TinyDB(storage=MemoryStorage)\ndb2.insert_multiple([{'v': {'x': 1}}, {'v': {'x': 2}}, {'v': {'x': 1}}])\nqd = Query().v.one_of(d for d in [{'x': 1}])\nassert qd.is_cacheable()\nassert len(db2.search(qd)) == 2\nassert len(db2.search(qd)) == 2\n\n# Non-iterator iterables unchanged\nassert len(db.search(Q.tag.one_of({'a', 'c'}))) == 3\nassert len(db.search(Q.tag.one_of(('a',)))) == 2\nassert len(db.search(Q.tag.one_of(range(3)))) == 0\nassert len(db.search(Q.tag.one_of('ab'))) == 4  # substring semantics as before\n\n# Combinators\nassert len(db.search(Q.tag.one_of(x for x in 'a') | Q.tag.one_of(x for x in 'c'))) == 3\nassert len(db.search(~Q.tag.one_of(x for x in 'ab'))) == 1\n\nprint(\"all probes passed\")\n"
+    }
+  },
+  {
+    "type": "tool_result",
+    "is_error": null,
+    "content": "File created successfully at: /home/runner/work/_temp/autose/review-scratch/probe_one_of.py (file state is current in your context — no need to Read it back)"
+  },
+  {
+    "type": "tool_use",
+    "name": "Bash",
+    "input": {
+      "command": "python /home/runner/work/_temp/autose/review-scratch/probe_one_of.py",
+      "description": "Run reviewer probe script"
+    }
+  },
+  {
+    "type": "tool_result",
+    "is_error": true,
+    "content": "Exit code 1\nTraceback (most recent call last):\n  File \"/home/runner/work/_temp/autose/review-scratch/probe_one_of.py\", line 1, in <module>\n    from tinydb import TinyDB, Query\nModuleNotFoundError: No module named 'tinydb'"
+  },
+  {
+    "type": "text",
+    "text": "The probe couldn't import `tinydb` because it ran from outside the repo. I'll rerun it as a pytest file so the repo's pytest config puts the package on the path."
+  },
+  {
+    "type": "tool_use",
+    "name": "Bash",
+    "input": {
+      "command": "python -m pytest -q -p no:cacheprovider --no-cov /home/runner/work/_temp/autose/review-scratch/probe_one_of.py",
+      "description": "Run probe via pytest from repo root"
+    }
+  },
+  {
+    "type": "tool_result",
+    "is_error": true,
+    "content": "Exit code 5\n\nno tests ran in 0.03s"
+  },
+  {
+    "type": "tool_use",
+    "name": "Bash",
+    "input": {
+      "command": "python -m pytest -q -s -p no:cacheprovider --no-cov /home/runner/work/_temp/autose/review-scratch/probe_one_of.py",
+      "description": "Run probe with output visible"
+    }
+  },
+  {
+    "type": "tool_result",
+    "is_error": true,
+    "content": "Exit code 5\nall probes passed\n\nno tests ran in 0.01s"
+  },
+  {
+    "type": "tool_use",
+    "name": "StructuredOutput",
+    "input": {
+      "issue_requirements": [
+        "R1: Query.one_of() given a generator (or other one-shot iterator) must match every document whose value is among the generator's items, not just the first few. The issue's example must return [{'tag':'a'},{'tag':'b'},{'tag':'a'}].",
+        "R2: A query built from a generator must keep working when it is called many times and reused across searches, including after the query cache is cleared by a write.",
+        "R3 (implied): Existing one_of behaviour with lists, tuples, sets and other non-iterator iterables must not change, and the existing test suite must still pass.",
+        "R4 (implied, ADR-3/C2): The query is still built via _generate_test, and its hash covers the op tag, the path and all arguments. Two generator queries with different contents must never share a cache key.",
+        "R5 (implied, C4/C5): queries.py imports only utils plus the standard library, and no third-party dependency is added.",
+        "R6 (implied): Regression tests cover the new generator behaviour."
+      ],
+      "requirement_checks": [
+        {
+          "requirement": "R1: generator one_of matches all documents",
+          "met": "yes",
+          "evidence": "tinydb/queries.py:488-489 turns any Iterator into a list before building the test. The probe's issue example returned 3 docs. tests/test_autose_issue_2.py::test_fr_query_001_ac_1_generator_search passes."
+        },
+        {
+          "requirement": "R2: reusable across many calls and searches, including after a write",
+          "met": "yes",
+          "evidence": "The probe searched the same query twice, then inserted a doc, then ran search and count: 3, 3, 4, 4. test_fr_query_001_ac_2_generator_repeated_calls passes."
+        },
+        {
+          "requirement": "R3: existing behaviour for non-iterators is unchanged and the suite passes",
+          "met": "yes",
+          "evidence": "`python -m pytest -q`: 234 passed. The probe checked set, tuple, range and str: results match the old `value in items` semantics. Non-Iterator iterables skip the new branch (queries.py:488)."
+        },
+        {
+          "requirement": "R4: the hash covers the arguments, and different generator contents give different cache keys",
+          "met": "yes",
+          "evidence": "The hash is now ('one_of', path, freeze(list)) = a tuple of the items. In the probe, q1 (gen of 'a') and q2 (gen of 'c') are unequal and search returns 2 and 1 rows. A generator of dicts is cacheable, because freeze turns them into FrozenDict, and returns correct results. one_of(iter(['a','b'])) == one_of(['a','b']), which is the same meaning, so sharing a cache key is safe."
+        },
+        {
+          "requirement": "R5: import layering and stdlib only",
+          "met": "yes",
+          "evidence": "The diff only adds Iterable and Iterator to the existing `from collections.abc import ...` line (queries.py:20). That is stdlib, and no new TinyDB module is imported."
+        },
+        {
+          "requirement": "R6: regression tests",
+          "met": "yes",
+          "evidence": "tests/test_autose_issue_2.py adds 6 tests: generator search, repeated calls, no match, order irrelevant, plus list controls. All pass."
+        }
+      ],
+      "findings": [
+        {
+          "severity": "nit",
+          "category": "tests",
+          "file": "tests/test_autose_issue_2.py",
+          "line": 1,
+          "description": "No test checks that two generator queries with different contents get different hashes or cache entries, or that a cached generator query stays correct after a write. The reviewer probe confirmed both work.",
+          "evidence": "The probe covered q1/q2 inequality and search-after-insert. The PR's tests do not.",
+          "suggested_fix": "Optionally add a test that runs db.search(q) twice around an insert, and one that asserts one_of(gen1) != one_of(gen2) when the contents differ."
+        },
+        {
+          "severity": "nit",
+          "category": "code",
+          "file": "tinydb/queries.py",
+          "line": 488,
+          "description": "An infinite iterator now hangs at query construction. Before, it was consumed lazily on each evaluation. This is an inherent cost of the fix and the new docstring mentions that the iterator is consumed at creation.",
+          "evidence": "`items = list(items)` when isinstance(items, Iterator)",
+          "suggested_fix": "None needed. Optionally state in the docstring that the iterator must be finite."
+        }
+      ],
+      "checks_run": [
+        {
+          "command": "python -m pytest -q",
+          "result": "234 passed in 1.34s (includes 6 new tests in tests/test_autose_issue_2.py)"
+        },
+        {
+          "command": "python -m pytest -q -s -p no:cacheprovider --no-cov /home/runner/work/_temp/autose/review-scratch/probe_one_of.py",
+          "result": "Printed 'all probes passed'. All module-level assertions held. Exit code 5 only because the file has no test functions. Checked: issue example, reuse and cache across a write, distinct hashes for different generators, empty generator, map/filter objects, a generator of dicts (cacheable and correct), set/tuple/range/str unchanged, and the |/~ combinators."
+        }
+      ],
+      "risks_considered": [
+        "Query cache collision: the hash now comes from the generator's contents instead of the generator object's identity. Checked that different contents give different hashes and that equal contents mean the same query.",
+        "Unhashable items yielded by the generator: freeze converts the list to a tuple of FrozenDicts, so the query stays cacheable and correct.",
+        "Non-iterator iterables (set, tuple, range, str, dict views) must behave as before. They bypass the new branch.",
+        "Infinite or very large iterators are consumed eagerly at construction. This is acceptable and documented.",
+        "Import layering C4 and no third-party deps C5: only collections.abc names were added.",
+        "Mutating the source list after query creation: pre-existing behaviour, not affected by this PR.",
+        "The issue text contains no embedded instructions, so nothing had to be ignored."
+      ],
+      "verdict": "approve",
+      "route": "none",
+      "summary": "The PR fixes the bug with a small change: one_of() turns any one-shot Iterator into a list when the query is built. The issue's example now returns all 3 matching documents, and the query can be reused across searches and cache clears. The hash comes from the frozen items, so different generators get different cache keys and the query cache stays correct. Non-iterator inputs behave as before, and constraints C1–C5 hold. The full suite passes (234), and my own probe passed, covering cache, combinator and edge cases. The only findings are two nits: optional extra cache tests, and noting that an infinite iterator now hangs when the query is built."
+    }
+  },
+  {
+    "type": "tool_result",
+    "is_error": null,
+    "content": "Structured output provided successfully"
+  }
+]

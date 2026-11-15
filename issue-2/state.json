@@ -36,5 +36,40 @@
     }
   ],
   "round": 1,
-  "status": "pr-open"
+  "status": "handover",
+  "reviews": [
+    {
+      "round": 1,
+      "verdict": "approve",
+      "route": "none",
+      "findings": 2,
+      "cost_usd": 0.21231380000000002,
+      "run_url": "https://github.com/iDheer/tinydb/actions/runs/43717567536",
+      "head_sha": "d291903fb47554898b5027e1c86e6247b19f3461"
+    }
+  ],
+  "last_review": {
+    "round": 1,
+    "findings": [
+      {
+        "severity": "nit",
+        "category": "tests",
+        "file": "tests/test_autose_issue_2.py",
+        "line": 1,
+        "description": "No test checks that two generator queries with different contents get different hashes or cache entries, or that a cached generator query stays correct after a write. The reviewer probe confirmed both work.",
+        "evidence": "The probe covered q1/q2 inequality and search-after-insert. The PR's tests do not.",
+        "suggested_fix": "Optionally add a test that runs db.search(q) twice around an insert, and one that asserts one_of(gen1) != one_of(gen2) when the contents differ."
+      },
+      {
+        "severity": "nit",
+        "category": "code",
+        "file": "tinydb/queries.py",
+        "line": 488,
+        "description": "An infinite iterator now hangs at query construction. Before, it was consumed lazily on each evaluation. This is an inherent cost of the fix and the new docstring mentions that the iterator is consumed at creation.",
+        "evidence": "`items = list(items)` when isinstance(items, Iterator)",
+        "suggested_fix": "None needed. Optionally state in the docstring that the iterator must be finite."
+      }
+    ],
+    "verdict": "approve"
+  }
 }

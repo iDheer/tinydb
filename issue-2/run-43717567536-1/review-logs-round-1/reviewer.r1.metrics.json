@@ -1,0 +1,207 @@
+{
+  "label": "reviewer.r1",
+  "role": "reviewer",
+  "ok": true,
+  "cost_usd": 0.21231,
+  "usage": {
+    "input_tokens": 16,
+    "cache_creation_input_tokens": 14693,
+    "cache_read_input_tokens": 125724,
+    "output_tokens": 5682,
+    "output_tokens_details": {
+      "thinking_tokens": 1135
+    },
+    "server_tool_use": {
+      "web_search_requests": 0,
+      "web_fetch_requests": 0
+    },
+    "service_tier": "standard",
+    "cache_creation": {
+      "ephemeral_1h_input_tokens": 0,
+      "ephemeral_5m_input_tokens": 14693
+    },
+    "inference_geo": "global",
+    "iterations": [],
+    "speed": "standard",
+    "fallback_credit": null
+  },
+  "num_turns": 11,
+  "duration_s": 64.9,
+  "error": "",
+  "denials": 1,
+  "model": "claude-opus-5-5",
+  "tool_calls": [
+    {
+      "tool": "Bash",
+      "args": {
+        "command": "cat ARCHITECTURE.md | head -80; sed -n 1,60p tinydb/utils.py | grep -n \"def freeze\" ; grep -n \"def freeze\" -A25 tinydb/utils.py; sed -n 470,500p tinydb/queries.py; grep -n \"_hash\\|def __hash__\\|is_cacheable\" tinydb/queries.py | head -30",
+        "description": "Read architecture doc and relevant code"
+      },
+      "allowed": false,
+      "reason": "one plain command per call: no pipes, redirects, chaining or substitution"
+    },
+    {
+      "tool": "Read",
+      "args": {
+        "file_path": "/home/runner/work/tinydb/tinydb/work/ARCHITECTURE.md"
+      },
+      "allowed": true,
+      "reason": "read inside working tree"
+    },
+    {
+      "tool": "Grep",
+      "args": {
+        "pattern": "def freeze",
+        "path": "/home/runner/work/tinydb/tinydb/work/tinydb/utils.py",
+        "output_mode": "content",
+        "-A": 25
+      },
+      "allowed": true,
+      "reason": "read inside working tree"
+    },
+    {
+      "tool": "Read",
+      "args": {
+        "file_path": "/home/runner/work/tinydb/tinydb/work/tinydb/queries.py",
+        "offset": 60,
+        "limit": 200
+      },
+      "allowed": true,
+      "reason": "read inside working tree"
+    },
+    {
+      "tool": "Bash",
+      "args": {
+        "command": "python -m pytest -q",
+        "description": "Run full test suite"
+      },
+      "allowed": true,
+      "reason": "allowlisted command"
+    },
+    {
+      "tool": "Write",
+      "args": {
+        "file_path": "/home/runner/work/_temp/autose/review-scratch/probe_one_of.py",
+        "content": "from tinydb import TinyDB, Query\nfrom tinydb.storages import MemoryStorage\n\ndb = TinyDB(storage=MemoryStorage)\ndb.insert_multiple([{'tag': 'a'}, {'tag': 'b'}, {'tag': 'a'}, {'tag': 'c'}])\nQ = Query()\n\n# Issue example\nr = db.search(Q.tag.one_of(t for t in ['a', 'b']))\nassert r == [{'tag': 'a'}, {'tag…"
+      },
+      "allowed": true,
+      "reason": "scratch write"
+    },
+    {
+      "tool": "Bash",
+      "args": {
+        "command": "python /home/runner/work/_temp/autose/review-scratch/probe_one_of.py",
+        "description": "Run reviewer probe script"
+      },
+      "allowed": true,
+      "reason": "reviewer probe script in scratch"
+    },
+    {
+      "tool": "Bash",
+      "args": {
+        "command": "python -m pytest -q -p no:cacheprovider --no-cov /home/runner/work/_temp/autose/review-scratch/probe_one_of.py",
+        "description": "Run probe via pytest from repo root"
+      },
+      "allowed": true,
+      "reason": "allowlisted command"
+    },
+    {
+      "tool": "Bash",
+      "args": {
+        "command": "python -m pytest -q -s -p no:cacheprovider --no-cov /home/runner/work/_temp/autose/review-scratch/probe_one_of.py",
+        "description": "Run probe with output visible"
+      },
+      "allowed": true,
+      "reason": "allowlisted command"
+    },
+    {
+      "tool": "StructuredOutput",
+      "args": {
+        "issue_requirements": [
+          "R1: Query.one_of() given a generator (or other one-shot iterator) must match every document whose value is among the generator's items, not just the first few. The issue's example must return [{'tag':'a'},{'tag':'b'},{'tag':'a'}].",
+          "R2: A query built from a generator must keep working when it is called many times and reused across searches, including after the query cache is cleared by a write.",
+          "R3 (implied): Existing one_of behaviour with lists, tuples, sets and other non-iterator iterables must not change, and the existing test suite must still pass.",
+          "R4 (implied, ADR-3/C2): The query is still built via _generate_test, and its hash covers the op tag, the path and all arguments. Two generator queries with different contents must never share a cache key.",
+          "R5 (implied, C4/C5): queries.py imports only utils plus the standard library, and no third-party dependency is added.",
+          "R6 (implied): Regression tests cover the new generator behaviour."
+        ],
+        "requirement_checks": [
+          {
+            "requirement": "R1: generator one_of matches all documents",
+            "met": "yes",
+            "evidence": "tinydb/queries.py:488-489 turns any Iterator into a list before building the test. The probe's issue example returned 3 docs. tests/test_autose_issue_2.py::test_fr_query_001_ac_1_generator_search passes."
+          },
+          {
+            "requirement": "R2: reusable across many calls and searches, including after a write",
+            "met": "yes",
+            "evidence": "The probe searched the same query twice, then inserted a doc, then ran search and count: 3, 3, 4, 4. test_fr_query_001_ac_2_generator_repeated_calls passes."
+          },
+          {
+            "requirement": "R3: existing behaviour for non-iterators is unchanged and the suite passes",
+            "met": "yes",
+            "evidence": "`python -m pytest -q`: 234 passed. The probe checked set, tuple, range and str: results match the old `value in items` semantics. Non-Iterator iterables skip the new branch (queries.py:488)."
+          },
+          {
+            "requirement": "R4: the hash covers the arguments, and different generator contents give different cache keys",
+            "met": "yes",
+            "evidence": "The hash is now ('one_of', path, freeze(list)) = a tuple of the items. In the probe, q1 (gen of 'a') and q2 (gen of 'c') are unequal and search returns 2 and 1 rows. A generator of dicts is cacheable, because freeze turns them into FrozenDict, and returns correct results. one_of(iter(['a','b'])) == one_of(['a','b']), which is the same meaning, so sharing a cache key is safe."
+          },
+          {
+            "requirement": "R5: import layering and stdlib only",
+            "met": "yes",
+            "evidence": "The diff only adds Iterable and Iterator to the existing `from collections.abc import ...` line (queries.py:20). That is stdlib, and no new TinyDB module is imported."
+          },
+          {
+            "requirement": "R6: regression tests",
+            "met": "yes",
+            "evidence": "tests/test_autose_issue_2.py adds 6 tests: generator search, repeated calls, no match, order irrelevant, plus list controls. All pass."
+          }
+        ],
+        "findings": [
+          {
+            "severity": "nit",
+            "category": "tests",
+            "file": "tests/test_autose_issue_2.py",
+            "line": 1,
+            "description": "No test checks that two generator queries with different contents get different hashes or cache entries, or that a cached generator query stays correct after a write. The reviewer probe confirmed both work.",
+            "evidence": "The probe covered q1/q2 inequality and search-after-insert. The PR's tests do not.",
+            "suggested_fix": "Optionally add a test that runs db.search(q) twice around an insert, and one that asserts one_of(gen1) != one_of(gen2) when the contents differ."
+          },
+          {
+            "severity": "nit",
+            "category": "code",
+            "file": "tinydb/queries.py",
+            "line": 488,
+            "description": "An infinite iterator now hangs at query construction. Before, it was consumed lazily on each evaluation. This is an inherent cost of the fix and the new docstring mentions that the iterator is consumed at creation.",
+            "evidence": "`items = list(items)` when isinstance(items, Iterator)",
+            "suggested_fix": "None needed. Optionally state in the docstring that the iterator must be finite."
+          }
+        ],
+        "checks_run": [
+          {
+            "command": "python -m pytest -q",
+            "result": "234 passed in 1.34s (includes 6 new tests in tests/test_autose_issue_2.py)"
+          },
+          {
+            "command": "python -m pytest -q -s -p no:cacheprovider --no-cov /home/runner/work/_temp/autose/review-scratch/probe_one_of.py",
+            "result": "Printed 'all probes passed'. All module-level assertions held. Exit code 5 only because the file has no test functions. Checked: issue example, reuse and cache across a write, distinct hashes for different generators, empty generator, map/filter objects, a generator of dicts (cacheable and correct), set/tuple/range/str unchanged, and the |/~ combinators."
+          }
+        ],
+        "risks_considered": [
+          "Query cache collision: the hash now comes from the generator's contents instead of the generator object's identity. Checked that different contents give different hashes and that equal contents mean the same query.",
+          "Unhashable items yielded by the generator: freeze converts the list to a tuple of FrozenDicts, so the query stays cacheable and correct.",
+          "Non-iterator iterables (set, tuple, range, str, dict views) must behave as before. They bypass the new branch.",
+          "Infinite or very large iterators are consumed eagerly at construction. This is acceptable and documented.",
+          "Import layering C4 and no third-party deps C5: only collections.abc names were added.",
+          "Mutating the source list after query creation: pre-existing behaviour, not affected by this PR.",
+          "The issue text contains no embedded instructions, so nothing had to be ignored."
+        ],
+        "verdict": "approve",
+        "route": "none",
+        "summary": "The PR fixes the bug with a small change: one_of() turns any one-shot Iterator into a list when the query is built. The issue's example now returns all 3 matching documents, and the query can be reused across searches and cache clears. The hash comes from the frozen items, so different generators ge…"
+      },
+      "allowed": true,
+      "reason": "final structured answer"
+    }
+  ]
+}
