@@ -1,0 +1,79 @@
+{
+  "label": "judge.0.0",
+  "role": "judge",
+  "ok": true,
+  "cost_usd": 0.00072,
+  "usage": {
+    "input_tokens": 2,
+    "cache_creation_input_tokens": 2364,
+    "cache_read_input_tokens": 2942,
+    "output_tokens": 784,
+    "output_tokens_details": {
+      "thinking_tokens": 207
+    },
+    "server_tool_use": {
+      "web_search_requests": 0,
+      "web_fetch_requests": 0
+    },
+    "service_tier": "standard",
+    "cache_creation": {
+      "ephemeral_1h_input_tokens": 0,
+      "ephemeral_5m_input_tokens": 2364
+    },
+    "inference_geo": "global",
+    "iterations": [],
+    "speed": "standard",
+    "fallback_credit": null
+  },
+  "num_turns": 2,
+  "duration_s": 3.8,
+  "error": "",
+  "denials": 0,
+  "model": "claude-haiku-5-5",
+  "tool_calls": [
+    {
+      "tool": "StructuredOutput",
+      "args": {
+        "criteria": [
+          {
+            "id": "FR-OPS-001.AC-1",
+            "testable": true,
+            "reason": "Concrete starting document, one import plus one update call, and an exact stored list value ['a', 'urgent'] to assert."
+          },
+          {
+            "id": "FR-OPS-001.AC-2",
+            "testable": true,
+            "reason": "Two named documents and a filtered update; the non-matching document's tags must remain exactly ['b']."
+          },
+          {
+            "id": "FR-OPS-001.AC-3",
+            "testable": true,
+            "reason": "Calling the returned callable on a plain dict has a single observable result: the dict equals {'tags': ['a', 'urgent']} afterwards."
+          },
+          {
+            "id": "FR-OPS-001.AC-4",
+            "testable": true,
+            "reason": "Two identical update calls with a defined expected final list ['a', 'urgent', 'urgent'] make the no-deduplication behaviour directly assertable."
+          },
+          {
+            "id": "FR-OPS-002.AC-1",
+            "testable": true,
+            "reason": "A document without a 'tags' key is a concrete starting state, and the expected result ['urgent'] is an exact value."
+          },
+          {
+            "id": "FR-OPS-002.AC-2",
+            "testable": true,
+            "reason": "The expected dict {'id': 7, 'tags': ['urgent']} and the absence of an exception are both checkable assertions."
+          },
+          {
+            "id": "FR-OPS-002.AC-3",
+            "testable": true,
+            "reason": "Two documents, one missing 'tags' and one with ['b'], are updated by a one_of query; the exact resulting lists for ids 7 and 8 are specified."
+          }
+        ]
+      },
+      "allowed": true,
+      "reason": "final structured answer"
+    }
+  ]
+}
