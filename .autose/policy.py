@@ -39,6 +39,7 @@ class Policy:
     workdir: Path
     writable: set[str] = field(default_factory=set)  # repo-relative POSIX paths
     scratch: Path | None = None
+    jail: list[str] = field(default_factory=list)  # argv prefix every allowed Bash command runs under
     denials: list[dict[str, Any]] = field(default_factory=list)
     calls: list[dict[str, Any]] = field(default_factory=list)
 
@@ -135,10 +136,19 @@ class Policy:
             self.calls.append(rec)
             if not ok:
                 self.denials.append(rec)
-            return {"hookSpecificOutput": {"hookEventName": "PreToolUse",
-                                           "permissionDecision": "allow" if ok else "deny",
-                                           "permissionDecisionReason": why}}
+            out: dict[str, Any] = {"hookEventName": "PreToolUse",
+                                   "permissionDecision": "allow" if ok else "deny",
+                                   "permissionDecisionReason": why}
+            if ok and tool == "Bash" and self.jail:
+                out["updatedInput"] = self.jailed(args)
+            return {"hookSpecificOutput": out}
         return pre_tool_use
+
+    def jailed(self, args: dict[str, Any]) -> dict[str, Any]:
+        """The allowed command, rewritten to run inside the jail. The policy already
+        rejected shell metacharacters, so the argv round-trips through shlex exactly."""
+        argv = shlex.split((args.get("command") or "").strip())
+        return {**args, "command": shlex.join(self.jail + argv)}
 
     def executed_bash(self) -> list[str]:
         return [c["args"].get("command", "") for c in self.calls if c["tool"] == "Bash" and c["allowed"]]

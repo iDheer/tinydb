@@ -187,3 +187,18 @@ def test_review_rules_turn_weak_approvals_into_changes():
     bad = dict(good, findings=[{"severity": "major", "category": "approach"}])
     v, _ = apply_rules(bad, ["python -m pytest -q"])
     assert v == "request_changes" and route_for(bad | {"route": "none"}, v) == "design"
+
+
+def test_policy_hook_jails_allowed_bash(tmp_path):
+    # Run 43716337981: the SDK sandbox failed on the runner, so the hook wraps commands itself.
+    p = Policy("tester", tmp_path, jail=["bwrap", "--unshare-net", "--"])
+    hook = p.hook()
+    out = asyncio.run(hook({"tool_name": "Bash", "tool_input": {"command": "python -m pytest -q 'tests/a b.py'",
+                                                                 "description": "x"}}, None, None))
+    o = out["hookSpecificOutput"]
+    assert o["permissionDecision"] == "allow"
+    assert o["updatedInput"]["command"] == "bwrap --unshare-net -- python -m pytest -q 'tests/a b.py'"
+    assert o["updatedInput"]["description"] == "x"
+    assert p.executed_bash() == ["python -m pytest -q 'tests/a b.py'"]  # verdict rules see the original
+    denied = asyncio.run(hook({"tool_name": "Bash", "tool_input": {"command": "curl x"}}, None, None))
+    assert "updatedInput" not in denied["hookSpecificOutput"]

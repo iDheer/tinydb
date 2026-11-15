@@ -83,7 +83,7 @@ jobs:
           sudo apt-get update -qq && sudo apt-get install -y -qq bubblewrap socat > /dev/null
           sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0 || true
           python -m pip install -q -r ctl/.autose/requirements.txt
-          bwrap --ro-bind / / --dev /dev --unshare-net true && echo "bubblewrap sandbox OK"
+          bwrap --ro-bind / / --dev /dev --proc /proc --tmpfs /tmp --unshare-net --unshare-pid --unshare-ipc --die-with-parent --new-session true && echo "bubblewrap jail OK"
           unshare -rn true && echo "network-less namespaces OK"
       - name: Orchestrator (stages 1-5)
         id: orch
@@ -131,7 +131,7 @@ jobs:
           sudo apt-get update -qq && sudo apt-get install -y -qq bubblewrap socat > /dev/null
           sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0 || true
           python -m pip install -q -r ctl/.autose/requirements.txt
-          bwrap --ro-bind / / --dev /dev --unshare-net true && echo "bubblewrap sandbox OK"
+          bwrap --ro-bind / / --dev /dev --proc /proc --tmpfs /tmp --unshare-net --unshare-pid --unshare-ipc --die-with-parent --new-session true && echo "bubblewrap jail OK"
       - name: Collect reviewer inputs (issue text; extra context only for the 'informed' variant)
         env:
           GH_TOKEN: ${{ github.token }}

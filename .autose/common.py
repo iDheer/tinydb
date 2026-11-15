@@ -96,6 +96,34 @@ def netless_prefix() -> list[str]:
     return ["unshare", "-rn"] if _UNSHARE_OK else []
 
 
+_BWRAP_OK: bool | None = None
+
+
+def jail_prefix(workdir: Path, scratch: Path | None = None) -> list[str]:
+    """argv prefix that runs one agent Bash command in a bubblewrap jail (ADR-009):
+    no network, own PID/IPC namespaces and a fresh /proc (other processes and their
+    environments are invisible), the whole filesystem read-only except the work tree,
+    the reviewer's scratch dir and an empty /tmp; $RUNNER_TEMP is hidden.
+    Falls back to `unshare -rn` (network only) when bubblewrap cannot run."""
+    global _BWRAP_OK
+    w = str(Path(workdir).resolve())
+    args = ["bwrap", "--ro-bind", "/", "/", "--dev", "/dev", "--proc", "/proc", "--tmpfs", "/tmp"]
+    rt = os.environ.get("RUNNER_TEMP")
+    if rt and not w.startswith(rt.rstrip("/") + "/"):
+        args += ["--tmpfs", rt]
+    args += ["--bind", w, w]
+    if scratch:
+        s = str(Path(scratch).resolve())
+        args += ["--bind", s, s]
+    args += ["--unshare-net", "--unshare-pid", "--unshare-ipc", "--die-with-parent", "--new-session",
+             "--chdir", w, "--"]
+    if _BWRAP_OK is None:
+        _BWRAP_OK = bool(sys.platform.startswith("linux") and shutil.which("bwrap")
+                         and run(args + ["true"]).returncode == 0)
+        log(f"agent Bash jail: {'bubblewrap' if _BWRAP_OK else 'UNAVAILABLE, falling back to unshare -rn'}")
+    return args if _BWRAP_OK else netless_prefix()
+
+
 def run_isolated(cmd: list[str], cwd: str | Path, timeout: int = 600) -> subprocess.CompletedProcess:
     return run(netless_prefix() + cmd, cwd=cwd, env=scrubbed_env(), timeout=timeout)
 
