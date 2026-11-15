@@ -2,7 +2,6 @@ import ast
 import importlib.util
 import subprocess
 import sys
-import tomllib
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
@@ -146,10 +145,17 @@ def test_fr_json_005_ac_3_aware_equality_query(tmp_path):
 
 
 def test_con_001_ac_1_no_new_runtime_dependencies():
-    cur = tomllib.loads((ROOT / 'pyproject.toml').read_text())
-    base = tomllib.loads(_base_file('pyproject.toml'))
-    cur_deps = set(cur['project'].get('dependencies', []))
-    base_deps = set(base['project'].get('dependencies', []))
+    import re
+
+    def runtime_deps(text):
+        m = re.search(r'^dependencies\s*=\s*\[(.*?)\]', text,
+                      re.S | re.M)
+        if not m:
+            return set()
+        return set(re.findall(r'["\']([^"\']+)["\']', m.group(1)))
+
+    cur_deps = runtime_deps((ROOT / 'pyproject.toml').read_text())
+    base_deps = runtime_deps(_base_file('pyproject.toml'))
     assert cur_deps <= base_deps
 
 
