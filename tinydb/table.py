@@ -246,7 +246,7 @@ class Table:
 
         return list(iter(self))
 
-    def search(self, cond: QueryLike) -> list[Document]:
+    def search(self, cond: QueryLike, limit: Optional[int] = None) -> list[Document]:
         """
         Search for all documents matching a 'where' cond.
 
@@ -257,6 +257,7 @@ class Table:
         what a later identical search returns.
 
         :param cond: the condition to check against
+        :param limit: return at most this many matching documents
         :returns: list of matching documents
         """
 
@@ -264,7 +265,17 @@ class Table:
         # query
         cached_results = self._query_cache.get(cond)
         if cached_results is not None:
-            return cached_results[:]
+            return cached_results[:limit]
+
+        if limit is not None:
+            # Stop early and do not cache a partial result
+            docs: list[Document] = []
+            for doc_id, doc in self._read_table().items():
+                if len(docs) >= limit:
+                    break
+                if cond(doc):
+                    docs.append(self.document_class(doc, self.document_id_class(doc_id)))
+            return docs
 
         # Perform the search by applying the query to all documents.
         # Then, only if the document matches the query, convert it
