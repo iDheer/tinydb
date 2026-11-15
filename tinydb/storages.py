@@ -133,6 +133,11 @@ class JSONStorage(Storage):
         members like ``cls`` or ``default`` will be called on every write
         operation.
 
+        **Note:** ``datetime.datetime`` and ``datetime.date`` values are stored
+        as dicts with the reserved keys ``__tinydb_type__`` and
+        ``__tinydb_value__``. A user dict with exactly these keys and a known
+        type is read back as a date/datetime.
+
         :param path: Where to store the JSON data.
         :param access_mode: mode in which the file is opened (r, r+)
         :type access_mode: str
@@ -185,7 +190,20 @@ class JSONStorage(Storage):
         kwargs = dict(self.kwargs)
         user_default = kwargs.get('default')
 
-        if user_default is None:
+        user_cls = kwargs.get('cls')
+
+        if user_default is None and user_cls is not None:
+            # A custom encoder class: keep its own ``default`` method working
+            # by subclassing it instead of passing a ``default`` argument
+            # (which would shadow the method).
+            class _Encoder(user_cls):  # type: ignore[misc,valid-type]
+                def default(self, o):
+                    if isinstance(o, datetime.date):
+                        return _encode_temporal(o)
+                    return super().default(o)
+
+            kwargs['cls'] = _Encoder
+        elif user_default is None:
             kwargs['default'] = _encode_temporal
         else:
             def default(obj):

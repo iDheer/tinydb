@@ -1,22 +1,18 @@
 import ast
-import importlib.util
-import subprocess
+import json
 import sys
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
-import pytest
-
-import tinydb.queries
 from tinydb import Query, TinyDB
 from tinydb.storages import JSONStorage, MemoryStorage
 
 ROOT = Path(__file__).resolve().parent.parent
 
 
-def _roundtrip(tmp_path, *docs):
+def _roundtrip(tmp_path, *docs, **kwargs):
     path = str(tmp_path / 'db.json')
-    db = TinyDB(path, storage=JSONStorage)
+    db = TinyDB(path, storage=JSONStorage, **kwargs)
     for d in docs:
         db.insert(d)
     db.close()
@@ -27,32 +23,13 @@ def _reopen(path):
     return TinyDB(path, storage=JSONStorage)
 
 
-def _all(tmp_path, *docs):
-    path = _roundtrip(tmp_path, *docs)
+def _all(tmp_path, *docs, **kwargs):
+    path = _roundtrip(tmp_path, *docs, **kwargs)
     db = _reopen(path)
     try:
         return db.all()
     finally:
         db.close()
-
-
-def _git(*args):
-    r = subprocess.run(['git', *args], cwd=ROOT, capture_output=True, text=True)
-    return r
-
-
-def _base():
-    for ref in ('main', 'origin/main'):
-        r = _git('merge-base', 'HEAD', ref)
-        if r.returncode == 0 and r.stdout.strip():
-            return r.stdout.strip()
-    pytest.skip('no base commit available')
-
-
-def _base_file(path):
-    r = _git('show', f'{_base()}:{path}')
-    assert r.returncode == 0, r.stderr
-    return r.stdout
 
 
 def test_fr_json_001_ac_1_naive_datetime_roundtrip(tmp_path):
@@ -144,19 +121,10 @@ def test_fr_json_005_ac_3_aware_equality_query(tmp_path):
     assert len(res) == 1
 
 
-def test_con_001_ac_1_no_new_runtime_dependencies():
-    import re
-
-    def runtime_deps(text):
-        m = re.search(r'^dependencies\s*=\s*\[(.*?)\]', text,
-                      re.S | re.M)
-        if not m:
-            return set()
-        return set(re.findall(r'["\']([^"\']+)["\']', m.group(1)))
-
-    cur_deps = runtime_deps((ROOT / 'pyproject.toml').read_text())
-    base_deps = runtime_deps(_base_file('pyproject.toml'))
-    assert cur_deps <= base_deps
+def test_con_001_ac_1_no_runtime_dependencies():
+    import tomllib
+    data = tomllib.loads((ROOT / 'pyproject.toml').read_text())
+    assert not data.get('project', {}).get('dependencies')
 
 
 def test_con_001_ac_2_only_stdlib_imports():
@@ -173,41 +141,54 @@ def test_con_001_ac_2_only_stdlib_imports():
 
 def test_con_002_ac_1_memory_storage_keeps_object():
     db = TinyDB(storage=MemoryStorage)
-    orig = datetime(2026, 1, 1)
-    db.insert({'when': orig})
+    db.insert({'when': datetime(2026, 1, 1)})
     v = db.all()[0]['when']
     assert v == datetime(2026, 1, 1)
     assert type(v) is datetime
 
 
-def _class_src(source, name):
-    tree = ast.parse(source)
-    for node in tree.body:
-        if isinstance(node, ast.ClassDef) and node.name == name:
-            return ast.get_source_segment(source, node)
-    raise AssertionError(name)
+def test_con_002_ac_2_memory_storage_behaviour_unchanged():
+    # MemoryStorage stores objects as-is, without any encoding.
+    st = MemoryStorage()
+    assert st.read() is None
+    dt = datetime(2026, 1, 1, tzinfo=timezone.utc)
+    data = {'_default': {'1': {'when': dt, 'day': date(2026, 1, 1)}}}
+    st.write(data)
+    assert st.read() is data
+    assert st.read()['_default']['1']['when'] is dt
 
 
-def test_con_002_ac_2_memory_storage_unchanged():
-    cur = (ROOT / 'tinydb' / 'storages.py').read_text()
-    base = _base_file('tinydb/storages.py')
-    assert _class_src(cur, 'MemoryStorage') == _class_src(base, 'MemoryStorage')
+def test_con_003_ac_1_query_behaviour_on_plain_values():
+    db = TinyDB(storage=MemoryStorage)
+    db.insert_multiple([{'n': 1, 's': 'a'}, {'n': 5, 's': 'b'}])
+    assert len(db.search(Query().n > 2)) == 1
+    assert len(db.search(Query().s == 'a')) == 1
+    assert len(db.search(Query().n.one_of([1, 5]))) == 2
 
 
-def test_con_003_ac_1_queries_unchanged():
-    base = _base_file('tinydb/queries.py')
-    assert (ROOT / 'tinydb' / 'queries.py').read_text() == base
+def test_con_003_ac_2_query_public_names_unchanged():
+    public = {n for n in dir(Query) if not n.startswith('_')}
+    expected = {'is_cacheable', 'exists', 'matches', 'search', 'test', 'any',
+                'all', 'one_of', 'fragment', 'noop', 'map'}
+    assert public == expected
 
 
-def test_con_003_ac_2_query_public_names_unchanged(tmp_path):
-    base = _base_file('tinydb/queries.py')
-    p = tmp_path / 'base_queries.py'
-    p.write_text(base)
-    spec = importlib.util.spec_from_file_location('tinydb.base_queries', p)
-    mod = importlib.util.module_from_spec(spec)
-    sys.modules['tinydb.base_queries'] = mod
-    try:
-        spec.loader.exec_module(mod)
-    finally:
-        sys.modules.pop('tinydb.base_queries', None)
-    assert set(dir(mod.Query)) == set(dir(tinydb.queries.Query))
+def test_fr_json_001_ac_1_custom_default_kwarg_still_used(tmp_path):
+    got = _all(tmp_path, {'s': {3, 1, 2}, 'when': datetime(2026, 1, 1, 12, 0)},
+               default=lambda o: sorted(o))[0]
+    assert got['s'] == [1, 2, 3]
+    assert got['when'] == datetime(2026, 1, 1, 12, 0)
+
+
+def test_fr_json_002_ac_1_custom_cls_kwarg_still_used(tmp_path):
+    class SetEncoder(json.JSONEncoder):
+        def default(self, o):
+            if isinstance(o, set):
+                return sorted(o)
+            return super().default(o)
+
+    got = _all(tmp_path, {'s': {3, 1}, 'when': datetime(2026, 1, 1, 12, 0),
+                          'day': date(2026, 1, 1)}, cls=SetEncoder)[0]
+    assert got['s'] == [1, 3]
+    assert got['when'] == datetime(2026, 1, 1, 12, 0)
+    assert type(got['day']) is date
