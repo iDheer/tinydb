@@ -1,0 +1,79 @@
+[
+  {
+    "type": "tool_use",
+    "name": "Bash",
+    "input": {
+      "command": "git diff; ls tests"
+    }
+  },
+  {
+    "type": "tool_result",
+    "is_error": true,
+    "content": "PreToolUse:Bash hook error: one plain command per call: no pipes, redirects, chaining or substitution"
+  },
+  {
+    "type": "tool_use",
+    "name": "Bash",
+    "input": {
+      "command": "git diff"
+    }
+  },
+  {
+    "type": "tool_result",
+    "is_error": false,
+    "content": "diff --git a/tinydb/operations.py b/tinydb/operations.py\nindex 3f6c6ab..b269dfc 100644\n--- a/tinydb/operations.py\n+++ b/tinydb/operations.py\n@@ -55,6 +55,19 @@ def set(field: str, val: Any) -> Callable[[MutableMapping], None]:\n     return transform\n \n \n+def append(field: str, value: Any) -> Callable[[MutableMapping], None]:\n+    \"\"\"\n+    Append ``value`` to the list stored in a given field of the document.\n+\n+    If the field does not exist, it is created as a list containing only\n+    ``value``. A list passed as ``value`` is added as a single element.\n+    \"\"\"\n+    def transform(doc: MutableMapping):\n+        doc.setdefault(field, []).append(value)\n+\n+    return transform\n+\n+\n def increment(field: str) -> Callable[[MutableMapping], None]:\n     \"\"\"\n     Increment a given field in the document by 1."
+  },
+  {
+    "type": "tool_use",
+    "name": "Write",
+    "input": {
+      "file_path": "/home/runner/work/tinydb/tinydb/work/tests/test_autose_issue_4.py",
+      "content": "from tinydb import TinyDB, where, Query\nfrom tinydb.storages import MemoryStorage\n\n\ndef _db(*docs):\n    db = TinyDB(storage=MemoryStorage)\n    for d in docs:\n        db.insert(d)\n    return db\n\n\ndef test_fr_ops_002_ac_1_append_creates_missing_field():\n    from tinydb.operations import append\n    db = _db({'id': 7})\n    db.update(append('tags', 'urgent'), Query().id == 7)\n    assert db.get(Query().id == 7)['tags'] == ['urgent']\n\n\ndef test_fr_ops_002_ac_2_other_documents_untouched():\n    from tinydb.operations import append\n    db = _db({'id': 7}, {'id': 8})\n    db.update(append('tags', 'urgent'), Query().id == 7)\n    assert db.get(Query().id == 7)['tags'] == ['urgent']\n    assert 'tags' not in db.get(Query().id == 8)\n\n\ndef test_fr_ops_002_ac_3_mixed_existing_and_missing():\n    from tinydb.operations import append\n    db = _db({'id': 7}, {'id': 8, 'tags': ['a']})\n    db.update(append('tags', 'urgent'), Query().id.exists())\n    assert db.get(Query().id == 7)['tags'] == ['urgent']\n    assert db.get(Query().id == 8)['tags'] == ['a', 'urgent']\n"
+    }
+  },
+  {
+    "type": "tool_result",
+    "is_error": null,
+    "content": "File created successfully at: /home/runner/work/tinydb/tinydb/work/tests/test_autose_issue_4.py (file state is current in your context — no need to Read it back)"
+  },
+  {
+    "type": "tool_use",
+    "name": "Bash",
+    "input": {
+      "command": "python -m pytest -q"
+    }
+  },
+  {
+    "type": "tool_result",
+    "is_error": false,
+    "content": "============================= test session starts ==============================\nplatform linux -- Python 3.12.16, pytest-9.2.0, pluggy-1.7.0\nrootdir: /home/runner/work/tinydb/tinydb/work\nconfigfile: pytest.ini\nplugins: cov-7.1.0, anyio-4.16.0\ncollected 231 items\n\ntests/test_autose_issue_4.py ...                                         [  1%]\ntests/test_middlewares.py .........                                      [  5%]\ntests/test_operations.py ..............                                  [ 11%]\ntests/test_queries.py ..................................                 [ 25%]\ntests/test_storages.py ..............                                    [ 32%]\ntests/test_tables.py ...............................                     [ 45%]\ntests/test_tinydb.py ................................................... [ 67%]\n...............................................................          [ 94%]\ntests/test_utils.py ............                                         [100%]\n\n================================ tests coverage ================================\n_______________ coverage: platform linux, python 3.12.16-final-0 _______________\n\nName                    Stmts   Miss Branch BrPart  Cover\n---------------------------------------------------------\ntinydb/__init__.py          5      0      0      0   100%\ntinydb/database.py         53      0     10      0   100%\ntinydb/middlewares.py      44      3     14      3    90%\ntinydb/mypy_plugin.py      26     26      2      0     0%\ntinydb/operations.py       30      0      0      0   100%\ntinydb/queries.py         130      2     30      4    96%\ntinydb/storages.py         57      0      8      0   100%\ntinydb/table.py           241      1    104      8    97%\ntinydb/utils.py            78      1     18      1    98%\ntinydb/version.py           1      0      0      0   100%\n---------------------------------------------------------\nTOTAL                     665     33    186     16    94%\n============================= 231 passed in 0.78s =============================="
+  },
+  {
+    "type": "tool_use",
+    "name": "StructuredOutput",
+    "input": {
+      "status": "done",
+      "tests": [
+        {
+          "name": "test_fr_ops_002_ac_1_append_creates_missing_field",
+          "ac_id": "FR-OPS-002.AC-1"
+        },
+        {
+          "name": "test_fr_ops_002_ac_2_other_documents_untouched",
+          "ac_id": "FR-OPS-002.AC-2"
+        },
+        {
+          "name": "test_fr_ops_002_ac_3_mixed_existing_and_missing",
+          "ac_id": "FR-OPS-002.AC-3"
+        }
+      ],
+      "notes": "Wrote 3 tests; they pass with the change and the full suite passes (231). I did not run them against the pre-change code, but they import append from tinydb.operations, which didn't exist there, so they would fail with ImportError.",
+      "suspected_bugs": []
+    }
+  },
+  {
+    "type": "tool_result",
+    "is_error": null,
+    "content": "Structured output provided successfully"
+  }
+]

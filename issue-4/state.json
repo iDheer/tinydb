@@ -1,0 +1,40 @@
+{
+  "issue": 4,
+  "branch": "autose/issue-4",
+  "base_sha": "13eca00a7cd30db0b7ff133907f86a272618d869",
+  "pr": 13,
+  "head_sha": "51dc5cebed99a849627a02b1275d990c63284456",
+  "ci": {
+    "conclusion": "success",
+    "url": "https://github.com/iDheer/tinydb/actions/runs/43717766362"
+  },
+  "runs": [
+    {
+      "run_id": "43717574209",
+      "attempt": "1",
+      "mode": "start",
+      "round": 1,
+      "variant": "baseline",
+      "status": "pr-open",
+      "reason": "",
+      "cost_usd": 0.2123,
+      "tokens": {
+        "input_tokens": 26,
+        "output_tokens": 10447,
+        "cache_read_input_tokens": 135011,
+        "cache_creation_input_tokens": 41929
+      },
+      "run_url": "https://github.com/iDheer/tinydb/actions/runs/43717574209",
+      "dir": "issue-4/run-43717574209-1",
+      "passed_stages": [
+        "spec",
+        "design",
+        "implement",
+        "test",
+        "release"
+      ]
+    }
+  ],
+  "round": 1,
+  "status": "pr-open"
+}

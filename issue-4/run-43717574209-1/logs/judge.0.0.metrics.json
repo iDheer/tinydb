@@ -1,0 +1,59 @@
+{
+  "label": "judge.0.0",
+  "role": "judge",
+  "ok": true,
+  "cost_usd": 0.00057,
+  "usage": {
+    "input_tokens": 2,
+    "cache_creation_input_tokens": 1849,
+    "cache_read_input_tokens": 2942,
+    "output_tokens": 615,
+    "output_tokens_details": {
+      "thinking_tokens": 270
+    },
+    "server_tool_use": {
+      "web_search_requests": 0,
+      "web_fetch_requests": 0
+    },
+    "service_tier": "standard",
+    "cache_creation": {
+      "ephemeral_1h_input_tokens": 0,
+      "ephemeral_5m_input_tokens": 1849
+    },
+    "inference_geo": "global",
+    "iterations": [],
+    "speed": "standard",
+    "fallback_credit": null
+  },
+  "num_turns": 2,
+  "duration_s": 3.5,
+  "error": "",
+  "denials": 0,
+  "model": "claude-haiku-5-5",
+  "tool_calls": [
+    {
+      "tool": "StructuredOutput",
+      "args": {
+        "criteria": [
+          {
+            "id": "FR-OPS-002.AC-1",
+            "testable": true,
+            "reason": "Concrete start state ({'id': 7} without 'tags'), a single update call, and observable results (tags == ['urgent'], no exception) that a pytest test can assert directly."
+          },
+          {
+            "id": "FR-OPS-002.AC-2",
+            "testable": true,
+            "reason": "Concrete two-document start state, a single targeted update, and specific observable outcomes for both document 7 (tags == ['urgent']) and document 8 (no 'tags' key) that can be asserted."
+          },
+          {
+            "id": "FR-OPS-002.AC-3",
+            "testable": true,
+            "reason": "Concrete start state with one document lacking 'tags' and one holding ['a'], a single update matching both via exists(), and exact expected lists ['urgent'] and ['a', 'urgent'] that are unambiguous to assert."
+          }
+        ]
+      },
+      "allowed": true,
+      "reason": "final structured answer"
+    }
+  ]
+}

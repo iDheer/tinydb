@@ -1,0 +1,186 @@
+{
+  "label": "planner-design.r1.0.0",
+  "role": "planner",
+  "ok": true,
+  "cost_usd": 0.05251,
+  "usage": {
+    "input_tokens": 4,
+    "cache_creation_input_tokens": 9700,
+    "cache_read_input_tokens": 18597,
+    "output_tokens": 2639,
+    "output_tokens_details": {
+      "thinking_tokens": 163
+    },
+    "server_tool_use": {
+      "web_search_requests": 0,
+      "web_fetch_requests": 0
+    },
+    "service_tier": "standard",
+    "cache_creation": {
+      "ephemeral_1h_input_tokens": 0,
+      "ephemeral_5m_input_tokens": 9700
+    },
+    "inference_geo": "global",
+    "iterations": [],
+    "speed": "standard",
+    "fallback_credit": null
+  },
+  "num_turns": 4,
+  "duration_s": 17.7,
+  "error": "",
+  "denials": 0,
+  "model": "claude-sonnet-5-5",
+  "tool_calls": [
+    {
+      "tool": "Read",
+      "args": {
+        "file_path": "/home/runner/work/tinydb/tinydb/work/tinydb/operations.py"
+      },
+      "allowed": true,
+      "reason": "read inside working tree"
+    },
+    {
+      "tool": "Grep",
+      "args": {
+        "pattern": "operations|increment",
+        "path": "/home/runner/work/tinydb/tinydb/work/tinydb",
+        "output_mode": "content"
+      },
+      "allowed": true,
+      "reason": "read inside working tree"
+    },
+    {
+      "tool": "StructuredOutput",
+      "args": {
+        "summary": "Add a single `append(field, value)` factory to tinydb/operations.py that returns a `transform(doc)` closure which appends to the list in `field` and creates `[value]` when the field is missing.",
+        "approach": "Follow the existing operations convention (factory returning a `transform(doc)` closure that mutates the doc in place and returns None). Implement as `doc.setdefault(field, []).append(value)`. A missing field becomes `[value]` (FR-OPS-002), an existing list gets the value added at the end (FR-OPS-00…",
+        "alternatives": [
+          {
+            "option": "Explicit `if field not in doc: doc[field] = [value] else: doc[field].append(value)`",
+            "why_not": "More lines for the same behaviour; setdefault is shorter and equally clear."
+          },
+          {
+            "option": "Raise TypeError when the existing value is not a list, or replace it, or treat None as missing (Q-001 b/c/d)",
+            "why_not": "Not requested; spec default is (a), natural Python error, consistent with the other operations. Adds behaviour that has no acceptance criterion."
+          },
+          {
+            "option": "Extend semantics for list/tuple values (Q-002 b)",
+            "why_not": "Spec default and FR-OPS-003 use list.append semantics; the name `append` implies it."
+          },
+          {
+            "option": "Build a new list (`doc[field] = doc.get(field, []) + [value]`)",
+            "why_not": "Fails with non-list types differently and needlessly copies the list; in-place append matches the issue's own snippet."
+          },
+          {
+            "option": "Also update docs/usage.rst, docs/api.rst and docs/changelog.rst",
+            "why_not": "Q-003 is unanswered (maintainer decision) and the spec lists docs as out of scope."
+          }
+        ],
+        "files": [
+          {
+            "path": "tinydb/operations.py",
+            "change": "modify",
+            "purpose": "Add the new `append` update operation next to the existing operations.",
+            "symbols": [
+              {
+                "name": "append",
+                "kind": "function",
+                "change": "create",
+                "description": "`append(field: str, value: Any) -> Callable[[MutableMapping], None]`. Returns an inner `transform(doc)` that does `doc.setdefault(field, []).append(value)`. It creates the field as `[value]` when missing, appends to the end of an existing list, and does not flatten list values. It has a docstring in the style of the other operations."
+              }
+            ]
+          }
+        ],
+        "ac_mapping": [
+          {
+            "ac_id": "FR-OPS-001.AC-1",
+            "symbols": [
+              "append"
+            ],
+            "test_idea": "TinyDB(storage=MemoryStorage) with ids 7 and 8; update(append('tags','urgent'), Query().id == 7); assert doc 7 tags == ['a','urgent'] and doc 8 tags == ['b']."
+          },
+          {
+            "ac_id": "FR-OPS-001.AC-2",
+            "symbols": [
+              "append"
+            ],
+            "test_idea": "`from tinydb.operations import append` succeeds and `callable(append)` is True."
+          },
+          {
+            "ac_id": "FR-OPS-001.AC-3",
+            "symbols": [
+              "append"
+            ],
+            "test_idea": "Doc {'id':7,'tags':[]}; update with append('tags','urgent'); assert tags == ['urgent']."
+          },
+          {
+            "ac_id": "FR-OPS-001.AC-4",
+            "symbols": [
+              "append"
+            ],
+            "test_idea": "Two docs with tags ['a'] and ['b']; update(append('tags','x'), Query().id.exists()); assert tags == ['a','x'] and ['b','x']."
+          },
+          {
+            "ac_id": "FR-OPS-002.AC-1",
+            "symbols": [
+              "append"
+            ],
+            "test_idea": "Doc {'id':7} with no tags; update with append; assert tags == ['urgent'] and no exception."
+          },
+          {
+            "ac_id": "FR-OPS-002.AC-2",
+            "symbols": [
+              "append"
+            ],
+            "test_idea": "Docs {'id':7} and {'id':8}; update only id 7; assert doc 7 tags == ['urgent'] and 'tags' not in doc 8."
+          },
+          {
+            "ac_id": "FR-OPS-002.AC-3",
+            "symbols": [
+              "append"
+            ],
+            "test_idea": "Docs {'id':7} and {'id':8,'tags':['a']}; update with Query().id.exists(); assert ['urgent'] and ['a','urgent']."
+          },
+          {
+            "ac_id": "FR-OPS-003.AC-1",
+            "symbols": [
+              "append"
+            ],
+            "test_idea": "Doc tags ['a']; append('tags', ['x','y']); assert tags == ['a', ['x','y']] (assumption-only AC, list.append semantics)."
+          }
+        ],
+        "constraints": [
+          {
+            "id": "C1",
+            "how_respected": "No storage changes; the operation is storage-agnostic."
+          },
+          {
+            "id": "C2",
+            "how_respected": "Not a query operation, so no query hash is needed. Queries are untouched."
+          },
+          {
+            "id": "C3",
+            "how_respected": "The operation only mutates the document passed in by Table.update; persistence and cache invalidation still happen in `Table._update_table`. Nothing writes to storage directly."
+          },
+          {
+            "id": "C4",
+            "how_respected": "operations.py gains no new imports (Any and MutableMapping are already imported) and nothing imports table/database."
+          },
+          {
+            "id": "C5",
+            "how_respected": "Standard library only; no new dependencies."
+          }
+        ],
+        "risks": [
+          "Non-list existing values (string, number, None) raise AttributeError (Q-001, default (a)); a maintainer may later want TypeError or replacement.",
+          "A list/tuple argument is appended as a single nested element (ASM-001); the maintainer might prefer extend semantics.",
+          "Module-level `set` in operations.py shadows the builtin, so the implementation must not use `set()` and should use setdefault, as designed.",
+          "The append mutates the list object in place. With MemoryStorage, if a user inserted a list they still hold a reference to, that list may be mutated, because MemoryStorage does not copy. This is the same aliasing as the existing operations and is acceptable.",
+          "Docs and changelog are not updated (Q-003 unanswered), so the new operation is undocumented until a maintainer decides."
+        ]
+      },
+      "allowed": true,
+      "reason": "final structured answer"
+    }
+  ]
+}

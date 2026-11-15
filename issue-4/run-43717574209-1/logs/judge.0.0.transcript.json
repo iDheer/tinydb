@@ -1,0 +1,30 @@
+[
+  {
+    "type": "tool_use",
+    "name": "StructuredOutput",
+    "input": {
+      "criteria": [
+        {
+          "id": "FR-OPS-002.AC-1",
+          "testable": true,
+          "reason": "Concrete start state ({'id': 7} without 'tags'), a single update call, and observable results (tags == ['urgent'], no exception) that a pytest test can assert directly."
+        },
+        {
+          "id": "FR-OPS-002.AC-2",
+          "testable": true,
+          "reason": "Concrete two-document start state, a single targeted update, and specific observable outcomes for both document 7 (tags == ['urgent']) and document 8 (no 'tags' key) that can be asserted."
+        },
+        {
+          "id": "FR-OPS-002.AC-3",
+          "testable": true,
+          "reason": "Concrete start state with one document lacking 'tags' and one holding ['a'], a single update matching both via exists(), and exact expected lists ['urgent'] and ['a', 'urgent'] that are unambiguous to assert."
+        }
+      ]
+    }
+  },
+  {
+    "type": "tool_result",
+    "is_error": null,
+    "content": "Structured output provided successfully"
+  }
+]
