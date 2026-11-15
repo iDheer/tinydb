@@ -3,6 +3,7 @@ Contains the :class:`base class <tinydb.storages.Storage>` for storages and
 implementations.
 """
 
+import datetime
 import io
 import json
 import os
@@ -11,6 +12,43 @@ from abc import ABC, abstractmethod
 from typing import Any, Optional
 
 __all__ = ('Storage', 'JSONStorage', 'MemoryStorage')
+
+
+_TYPE_KEY = '__tinydb_type__'
+_VALUE_KEY = '__tinydb_value__'
+
+
+def _encode_temporal(obj: Any) -> dict[str, str]:
+    """
+    JSON ``default`` hook encoding datetimes and dates as tagged dicts.
+    """
+    # datetime must be checked first as it is a subclass of date
+    if isinstance(obj, datetime.datetime):
+        return {_TYPE_KEY: 'datetime', _VALUE_KEY: obj.isoformat()}
+    if isinstance(obj, datetime.date):
+        return {_TYPE_KEY: 'date', _VALUE_KEY: obj.isoformat()}
+
+    raise TypeError(
+        'Object of type {0} is not JSON serializable'.format(type(obj).__name__)
+    )
+
+
+def _decode_temporal(dct: dict[str, Any]) -> Any:
+    """
+    JSON ``object_hook`` turning tagged dicts back into datetimes and dates.
+    """
+    if len(dct) == 2 and _TYPE_KEY in dct and _VALUE_KEY in dct:
+        kind = dct[_TYPE_KEY]
+        value = dct[_VALUE_KEY]
+        try:
+            if kind == 'datetime' and isinstance(value, str):
+                return datetime.datetime.fromisoformat(value)
+            if kind == 'date' and isinstance(value, str):
+                return datetime.date.fromisoformat(value)
+        except ValueError:
+            pass
+
+    return dct
 
 
 def touch(path: str, create_dirs: bool):
@@ -137,14 +175,27 @@ class JSONStorage(Storage):
             self._handle.seek(0)
 
             # Load the JSON contents of the file
-            return json.load(self._handle)
+            return json.load(self._handle, object_hook=_decode_temporal)
 
     def write(self, data: dict[str, dict[str, Any]]):
         # Move the cursor to the beginning of the file just in case
         self._handle.seek(0)
 
         # Serialize the database state using the user-provided arguments
-        serialized = json.dumps(data, **self.kwargs)
+        kwargs = dict(self.kwargs)
+        user_default = kwargs.get('default')
+
+        if user_default is None:
+            kwargs['default'] = _encode_temporal
+        else:
+            def default(obj):
+                if isinstance(obj, datetime.date):
+                    return _encode_temporal(obj)
+                return user_default(obj)
+
+            kwargs['default'] = default
+
+        serialized = json.dumps(data, **kwargs)
 
         # Write the serialized data to the file
         try:
