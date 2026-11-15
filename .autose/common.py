@@ -115,7 +115,9 @@ def jail_prefix(workdir: Path, scratch: Path | None = None) -> list[str]:
     if scratch:
         s = str(Path(scratch).resolve())
         args += ["--bind", s, s]
-    args += ["--unshare-net", "--unshare-pid", "--unshare-ipc", "--die-with-parent", "--new-session",
+    # PYTHONPATH: reviewer probe scripts live in scratch but must import the package under review.
+    args += ["--setenv", "PYTHONPATH", w,
+             "--unshare-net", "--unshare-pid", "--unshare-ipc", "--die-with-parent", "--new-session",
              "--chdir", w, "--"]
     if _BWRAP_OK is None:
         _BWRAP_OK = bool(sys.platform.startswith("linux") and shutil.which("bwrap")
