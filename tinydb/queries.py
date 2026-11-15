@@ -481,8 +481,10 @@ class Query(QueryInstance):
 
         :param items: The list of items to check with
         """
+        # Materialise generators so that the membership test works for every
+        # document, not only for the first ones.
         return self._generate_test(
-            lambda value: value in items,
+            lambda value: value in list(items),
             ('one_of', self._path, freeze(items))
         )
 
