@@ -72,7 +72,7 @@
     }
   ],
   "round": 2,
-  "status": "pr-open",
+  "status": "handover",
   "pr": 17,
   "head_sha": "f361fcb40b44bacd049d8abfdc8d578805f3ba95",
   "ci": {
@@ -88,40 +88,58 @@
       "cost_usd": 0.225699,
       "run_url": "https://github.com/iDheer/tinydb/actions/runs/43717905065",
       "head_sha": "344a959580d4a05d88574e0b83ebb93287271c12"
+    },
+    {
+      "round": 2,
+      "verdict": "approve",
+      "route": "none",
+      "findings": 4,
+      "cost_usd": 0.3551234000000001,
+      "run_url": "https://github.com/iDheer/tinydb/actions/runs/43718689487",
+      "head_sha": "f361fcb40b44bacd049d8abfdc8d578805f3ba95"
     }
   ],
   "last_review": {
-    "round": 1,
+    "round": 2,
     "findings": [
-      {
-        "severity": "major",
-        "category": "code",
-        "file": "tinydb/storages.py",
-        "line": 189,
-        "description": "Regression: JSONStorage.write now always passes `default=` to json.dumps. When a user configured the storage with a custom encoder class (`TinyDB(path, cls=MyEncoder)`, which is forwarded to json.dumps through **kwargs and worked before), json.dumps passes our `default` to the encoder constructor. That sets `self.default` on the instance and shadows the class's `default()` method, so the user's encoder is never consulted. Any insert of a type the user's encoder handled (Decimal, UUID, set, ...) now raises TypeError.",
-        "evidence": "Probe 5: `json.dumps({'x': Decimal('1.5')}, cls=DecEnc)` gives '{\"x\": \"1.5\"}' (this is the pre-PR code path, json.dumps(data, **kwargs)). `TinyDB(p, cls=DecEnc).insert({'x': Decimal('1.5')})` gives 'cls encoder FAIL TypeError Object of type Decimal is not JSON serializable'.",
-        "suggested_fix": "When neither `default` nor a custom `cls` is given, keep the current behaviour. When `cls` is given, fall back to the encoder's own `default`. One way: when `cls` is present and `default` is not, subclass it dynamically (`class _Enc(user_cls): def default(self, o): return _encode_temporal(o) if isinstance(o, datetime.date) else super().default(o)`), pass `cls=_Enc`, and do not set `default`. Add a regression test with a custom cls encoder and a datetime in the same document, and one with a user `default=`."
-      },
       {
         "severity": "minor",
         "category": "code",
         "file": "tinydb/storages.py",
-        "line": 41,
-        "description": "Tag collision: a user document that legitimately contains a dict with exactly the keys '__tinydb_type__' and '__tinydb_value__' (for example, data copied from another TinyDB file's raw JSON) is silently turned into a date/datetime on read. This is an unlikely edge case and an accepted trade-off of tagged encoding, but it is neither documented nor tested.",
-        "evidence": "Probe 6: inserting {'meta': {'__tinydb_type__': 'date', '__tinydb_value__': '2026-01-01'}} reads back as {'meta': datetime.date(2026, 1, 1)}.",
-        "suggested_fix": "Document the reserved keys in the JSONStorage docstring, or escape user dicts that use the reserved key on write."
+        "line": 199,
+        "description": "If a user's cls or default already encoded datetimes (e.g. default=str, or an encoder that writes ISO strings), the PR now intercepts datetime/date before the user's hook, so their custom encoding is silently ignored on new writes. This fits the maintainer's decision but changes behaviour for existing setups, and nothing documents it.",
+        "evidence": "storages.py:201 and :210 check isinstance(o, datetime.date) before delegating to the user's default/cls.",
+        "suggested_fix": "Mention in the JSONStorage docstring or changelog that built-in date encoding takes precedence over a user's default/cls."
       },
       {
         "severity": "nit",
-        "category": "tests",
-        "file": "tests/test_autose_issue_5.py",
-        "line": 43,
-        "description": "Several tests depend on git history (merge-base with main, `git show`). They skip or fail outside a git checkout (sdist, shallow CI clone), and they assert process properties (queries.py byte-identical to base) rather than behaviour.",
-        "evidence": "_base() calls `git merge-base HEAD main`, and _base_file asserts the git return code is 0.",
-        "suggested_fix": "Drop the git-diff based tests or mark them as meta-checks. Keep the behavioural tests, and add tests for the cls/default kwargs."
+        "category": "code",
+        "file": "tinydb/storages.py",
+        "line": 199,
+        "description": "A new _Encoder subclass (or closure) is built on every write() call. It works, but it could be built once in __init__.",
+        "evidence": "The class statement is inside write().",
+        "suggested_fix": "Build the encoder kwargs once in __init__ and reuse them."
+      },
+      {
+        "severity": "nit",
+        "category": "code",
+        "file": "tinydb/storages.py",
+        "line": 40,
+        "description": "A user document that is exactly {'__tinydb_type__': 'date'|'datetime', '__tinydb_value__': <valid ISO string>} is read back as a date. This is documented, and unlikely in practice.",
+        "evidence": "storages.py:40 and the docstring note at storages.py:136-139.",
+        "suggested_fix": "Acceptable as documented; an escape mechanism could be added later if needed."
+      },
+      {
+        "severity": "nit",
+        "category": "code",
+        "file": "tinydb/storages.py",
+        "line": 27,
+        "description": "A UTC offset smaller than one second (e.g. 1 \u00b5s) comes back as UTC, because CPython's fromisoformat drops it. No real timezone has such an offset.",
+        "evidence": "offset_probe.py: '2026-01-01T00:00:00+00:00:00.000001' -> utcoffset timedelta(0).",
+        "suggested_fix": "None needed."
       }
     ],
-    "verdict": "request_changes"
+    "verdict": "approve"
   },
   "send_backs": 1
 }
