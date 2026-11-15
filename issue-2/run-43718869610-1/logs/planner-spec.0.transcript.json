@@ -1,0 +1,288 @@
+[
+  {
+    "type": "tool_use",
+    "name": "Grep",
+    "input": {
+      "pattern": "def one_of|def any|def all|def test\\(|_generate_test|def _cached|hashval",
+      "path": "/home/runner/work/tinydb/tinydb/work/tinydb/queries.py",
+      "output_mode": "content"
+    }
+  },
+  {
+    "type": "tool_result",
+    "is_error": null,
+    "content": "76:    def __init__(self, test: Callable[[Mapping], bool], hashval: Optional[tuple]):\n78:        if hashval is not None:\n80:                hash(hashval)\n84:                hashval = None\n85:        self._hash = hashval\n100:        # We calculate the query hash by using the ``hashval`` object which\n121:            hashval = ('and', frozenset([self._hash, other._hash]))\n123:            hashval = None\n124:        return QueryInstance(lambda value: self(value) and other(value), hashval)\n131:            hashval = ('or', frozenset([self._hash, other._hash]))\n133:            hashval = None\n134:        return QueryInstance(lambda value: self(value) or other(value), hashval)\n137:        hashval = ('not', self._hash) if self.is_cacheable() else None\n138:        return QueryInstance(lambda value: not self(value), hashval)\n184:            hashval=(None,)\n218:    def _generate_test(\n221:            hashval: tuple,\n229:        :param hashval: The hash of the query.\n251:            (hashval if self.is_cacheable() else None)\n262:        return self._generate_test(\n275:        return self._generate_test(\n288:        return self._generate_test(\n301:        return self._generate_test(\n314:        return self._generate_test(\n327:        return self._generate_test(\n338:        return self._generate_test(\n352:        def test(value):\n360:        return self._generate_test(test, ('matches', self._path, regex, flags))\n373:        def test(value):\n381:        return self._generate_test(test, ('search', self._path, regex, flags))\n383:    def test(self, func: Callable[..., bool], *args) -> QueryInstance:\n403:        return self._generate_test(\n408:    def any(self, cond: Union[QueryInstance, list[Any]]) -> QueryInstance:\n431:            def test(value):\n435:            def test(value):\n438:        return self._generate_test(\n443:    def all(self, cond: Union['QueryInstance', list[Any]]) -> QueryInstance:\n464:            def test(value):\n468:            def test(value):\n471:        return self._generate_test(\n476:    def one_of(self, items: list[Any]) -> QueryInstance:\n484:        return self._generate_test(\n490:        def test(value):\n497:        return self._generate_test("
+  },
+  {
+    "type": "tool_use",
+    "name": "Read",
+    "input": {
+      "file_path": "/home/runner/work/tinydb/tinydb/work/tinydb/queries.py",
+      "offset": 405,
+      "limit": 95
+    }
+  },
+  {
+    "type": "tool_result",
+    "is_error": null,
+    "content": "405\t            ('test', self._path, func, tuple(freeze(arg) for arg in args))\n406\t        )\n407\t\n408\t    def any(self, cond: Union[QueryInstance, list[Any]]) -> QueryInstance:\n409\t        \"\"\"\n410\t        Check if a condition is met by any document in a list,\n411\t        where a condition can also be a sequence (e.g. list).\n412\t\n413\t        >>> Query().f1.any(Query().f2 == 1)\n414\t\n415\t        Matches::\n416\t\n417\t            {'f1': [{'f2': 1}, {'f2': 0}]}\n418\t\n419\t        >>> Query().f1.any([1, 2, 3])\n420\t\n421\t        Matches::\n422\t\n423\t            {'f1': [1, 2]}\n424\t            {'f1': [3, 4, 5]}\n425\t\n426\t        :param cond: Either a query that at least one document has to match or\n427\t                     a list of which at least one document has to be contained\n428\t                     in the tested document.\n429\t        \"\"\"\n430\t        if callable(cond):\n431\t            def test(value):\n432\t                return is_sequence(value) and any(cond(e) for e in value)\n433\t\n434\t        else:\n435\t            def test(value):\n436\t                return is_sequence(value) and any(e in cond for e in value)\n437\t\n438\t        return self._generate_test(\n439\t            lambda value: test(value),\n440\t            ('any', self._path, freeze(cond))\n441\t        )\n442\t\n443\t    def all(self, cond: Union['QueryInstance', list[Any]]) -> QueryInstance:\n444\t        \"\"\"\n445\t        Check if a condition is met by all documents in a list,\n446\t        where a condition can also be a sequence (e.g. list).\n447\t\n448\t        >>> Query().f1.all(Query().f2 == 1)\n449\t\n450\t        Matches::\n451\t\n452\t            {'f1': [{'f2': 1}, {'f2': 1}]}\n453\t\n454\t        >>> Query().f1.all([1, 2, 3])\n455\t\n456\t        Matches::\n457\t\n458\t            {'f1': [1, 2, 3, 4, 5]}\n459\t\n460\t        :param cond: Either a query that all documents have to match or a list\n461\t                     which has to be contained in the tested document.\n462\t        \"\"\"\n463\t        if callable(cond):\n464\t            def test(value):\n465\t                return is_sequence(value) and all(cond(e) for e in value)\n466\t\n467\t        else:\n468\t            def test(value):\n469\t                return is_sequence(value) and all(e in value for e in cond)\n470\t\n471\t        return self._generate_test(\n472\t            lambda value: test(value),\n473\t            ('all', self._path, freeze(cond))\n474\t        )\n475\t\n476\t    def one_of(self, items: list[Any]) -> QueryInstance:\n477\t        \"\"\"\n478\t        Check if the value is contained in a list or generator.\n479\t\n480\t        >>> Query().f1.one_of(['value 1', 'value 2'])\n481\t\n482\t        :param items: The list of items to check with\n483\t        \"\"\"\n484\t        return self._generate_test(\n485\t            lambda value: value in items,\n486\t            ('one_of', self._path, freeze(items))\n487\t        )\n488\t\n489\t    def fragment(self, document: Mapping) -> QueryInstance:\n490\t        def test(value):\n491\t            for key in document:\n492\t                if key not in value or value[key] != document[key]:\n493\t                    return False\n494\t\n495\t            return True\n496\t\n497\t        return self._generate_test(\n498\t            lambda value: test(value),\n499\t            ('fragment', freeze(document)),"
+  },
+  {
+    "type": "tool_use",
+    "name": "Read",
+    "input": {
+      "file_path": "/home/runner/work/tinydb/tinydb/work/tinydb/queries.py",
+      "offset": 70,
+      "limit": 70
+    }
+  },
+  {
+    "type": "tool_result",
+    "is_error": null,
+    "content": "70\t\n71\t    In order to be usable in a query cache, a query needs to have a stable hash\n72\t    value with the same query always returning the same hash. That way a query\n73\t    instance can be used as a key in a dictionary.\n74\t    \"\"\"\n75\t\n76\t    def __init__(self, test: Callable[[Mapping], bool], hashval: Optional[tuple]):\n77\t        self._test = test\n78\t        if hashval is not None:\n79\t            try:\n80\t                hash(hashval)\n81\t            except TypeError:\n82\t                # Contains something we can't freeze (e.g. a numpy array) --\n83\t                # fall back to uncacheable rather than crash on first use.\n84\t                hashval = None\n85\t        self._hash = hashval\n86\t\n87\t    def is_cacheable(self) -> bool:\n88\t        return self._hash is not None\n89\t\n90\t    def __call__(self, value: Mapping) -> bool:\n91\t        \"\"\"\n92\t        Evaluate the query to check if it matches a specified value.\n93\t\n94\t        :param value: The value to check.\n95\t        :return: Whether the value matches this query.\n96\t        \"\"\"\n97\t        return self._test(value)\n98\t\n99\t    def __hash__(self) -> int:\n100\t        # We calculate the query hash by using the ``hashval`` object which\n101\t        # describes this query uniquely, so we can calculate a stable hash\n102\t        # value by simply hashing it\n103\t        return hash(self._hash)\n104\t\n105\t    def __repr__(self):\n106\t        return 'QueryImpl{}'.format(self._hash)\n107\t\n108\t    def __eq__(self, other: object):\n109\t        if isinstance(other, QueryInstance):\n110\t            return self._hash == other._hash\n111\t\n112\t        return False\n113\t\n114\t    # --- Query modifiers -----------------------------------------------------\n115\t\n116\t    def __and__(self, other: 'QueryInstance') -> 'QueryInstance':\n117\t        # We use a frozenset for the hash as the AND operation is commutative\n118\t        # (a & b == b & a) and the frozenset does not consider the order of\n119\t        # elements\n120\t        if self.is_cacheable() and other.is_cacheable():\n121\t            hashval = ('and', frozenset([self._hash, other._hash]))\n122\t        else:\n123\t            hashval = None\n124\t        return QueryInstance(lambda value: self(value) and other(value), hashval)\n125\t\n126\t    def __or__(self, other: 'QueryInstance') -> 'QueryInstance':\n127\t        # We use a frozenset for the hash as the OR operation is commutative\n128\t        # (a | b == b | a) and the frozenset does not consider the order of\n129\t        # elements\n130\t        if self.is_cacheable() and other.is_cacheable():\n131\t            hashval = ('or', frozenset([self._hash, other._hash]))\n132\t        else:\n133\t            hashval = None\n134\t        return QueryInstance(lambda value: self(value) or other(value), hashval)\n135\t\n136\t    def __invert__(self) -> 'QueryInstance':\n137\t        hashval = ('not', self._hash) if self.is_cacheable() else None\n138\t        return QueryInstance(lambda value: not self(value), hashval)\n139\t"
+  },
+  {
+    "type": "tool_use",
+    "name": "Read",
+    "input": {
+      "file_path": "/home/runner/work/tinydb/tinydb/work/tinydb/queries.py",
+      "offset": 215,
+      "limit": 45
+    }
+  },
+  {
+    "type": "tool_result",
+    "is_error": null,
+    "content": "215\t        # ``Query.test`` method\n216\t        return self.__getattr__(item)\n217\t\n218\t    def _generate_test(\n219\t            self,\n220\t            test: Callable[[Any], bool],\n221\t            hashval: tuple,\n222\t            allow_empty_path: bool = False\n223\t    ) -> QueryInstance:\n224\t        \"\"\"\n225\t        Generate a query based on a test function that first resolves the query\n226\t        path.\n227\t\n228\t        :param test: The test the query executes.\n229\t        :param hashval: The hash of the query.\n230\t        :return: A :class:`~tinydb.queries.QueryInstance` object\n231\t        \"\"\"\n232\t        if not self._path and not allow_empty_path:\n233\t            raise ValueError('Query has no path')\n234\t\n235\t        def runner(value):\n236\t            try:\n237\t                # Resolve the path\n238\t                for part in self._path:\n239\t                    if isinstance(part, str):\n240\t                        value = value[part]\n241\t                    else:\n242\t                        value = part(value)\n243\t            except (KeyError, TypeError):\n244\t                return False\n245\t            else:\n246\t                # Perform the specified test\n247\t                return test(value)\n248\t\n249\t        return QueryInstance(\n250\t            lambda value: runner(value),\n251\t            (hashval if self.is_cacheable() else None)\n252\t        )\n253\t\n254\t    def __eq__(self, rhs: Any):\n255\t        \"\"\"\n256\t        Test a dict value for equality.\n257\t\n258\t        >>> Query().f1 == 42\n259\t"
+  },
+  {
+    "type": "tool_use",
+    "name": "Grep",
+    "input": {
+      "pattern": "def freeze",
+      "path": "/home/runner/work/tinydb/tinydb/work/tinydb/utils.py",
+      "output_mode": "content",
+      "-A": 22
+    }
+  },
+  {
+    "type": "tool_result",
+    "is_error": null,
+    "content": "150:def freeze(obj):\n151-    \"\"\"\n152-    Freeze an object by making it immutable and thus hashable.\n153-    \"\"\"\n154-    if isinstance(obj, dict):\n155-        # Transform dicts into ``FrozenDict``s\n156-        return FrozenDict((k, freeze(v)) for k, v in obj.items())\n157-    elif isinstance(obj, list):\n158-        # Transform lists into tuples\n159-        return tuple(freeze(el) for el in obj)\n160-    elif isinstance(obj, tuple):\n161-        # Freeze tuple elements too, so a nested dict/list inside an\n162-        # already-tuple arg (e.g. Query.test's *args) is still hashable\n163-        return tuple(freeze(el) for el in obj)\n164-    elif isinstance(obj, set):\n165-        # Transform sets into ``frozenset``s\n166-        return frozenset(obj)\n167-    else:\n168-        # Don't handle all other objects\n169-        return obj"
+  },
+  {
+    "type": "tool_use",
+    "name": "Grep",
+    "input": {
+      "pattern": "one_of",
+      "path": "/home/runner/work/tinydb/tinydb/work",
+      "output_mode": "content",
+      "glob": "*.{py,rst}"
+    }
+  },
+  {
+    "type": "tool_result",
+    "is_error": null,
+    "content": "tinydb/queries.py:476:    def one_of(self, items: list[Any]) -> QueryInstance:\ntinydb/queries.py:480:        >>> Query().f1.one_of(['value 1', 'value 2'])\ntinydb/queries.py:486:            ('one_of', self._path, freeze(items))\ndocs/usage.rst:169:is also possible using ``one_of``:\ndocs/usage.rst:171:>>> db.search(User.name.one_of(['jane', 'john']))\ndocs/usage.rst:246:| ``Query().field.one_of(list)``      | Match if the field is contained in the list                         |\ndocs/changelog.rst:353:- Feature: ``one_of`` for checking if a value is contained in a list\ntests/test_queries.py:428:def test_one_of():\ntests/test_queries.py:429:    query = Query().key1.one_of(['value 1', 'value 2'])"
+  },
+  {
+    "type": "tool_use",
+    "name": "StructuredOutput",
+    "input": {
+      "title": "Query.one_of() must match all documents when given a generator",
+      "summary": "Precise bug report. Currently `Query.one_of(items)` (tinydb/queries.py:476) runs `value in items` once per document. `freeze()` leaves a generator unchanged, so the generator is a one-shot iterator that is consumed by the first documents tested. Later documents then see an exhausted generator and fail to match; in the issue's example the second `'a'` is missing. The issue states the expected result for the example (all three matching documents) and says the list case already works. Two requirements are READY: generator support, and no change for lists. One candidate requirement (reusing one query object for several searches) is recorded as not agreed. Only P3 questions remain, and stakeholder mode is unavailable (no maintainer comments), so the verdict is READY-WITH-OPEN-ITEMS. No instructions were found inside the untrusted issue text. No tools were needed for evidence: nothing public and named is involved.",
+      "verdict": "READY-WITH-OPEN-ITEMS",
+      "requirements": [
+        {
+          "id": "FR-QUERY-001",
+          "kind": "FR",
+          "statement": "When a generator is passed to Query.one_of, the query shall match every document whose tested field value is contained in the values the generator yields, with no document missed because earlier documents were tested.",
+          "source": "STATED",
+          "source_quote": "expected: [{'tag': 'a'}, {'tag': 'b'}, {'tag': 'a'}]",
+          "priority": "MUST",
+          "status": "READY",
+          "acceptance_criteria": [
+            {
+              "id": "FR-QUERY-001.AC-1",
+              "given": "a TinyDB on MemoryStorage holding the documents {'tag':'a'}, {'tag':'b'}, {'tag':'a'}, {'tag':'c'} and allowed = (t for t in ['a','b'])",
+              "when": "db.search(Query().tag.one_of(allowed)) is called once",
+              "then": "the result equals [{'tag':'a'}, {'tag':'b'}, {'tag':'a'}]"
+            },
+            {
+              "id": "FR-QUERY-001.AC-2",
+              "given": "q = Query().tag.one_of(t for t in ['a','b'])",
+              "when": "q is called directly with {'tag':'a'}, {'tag':'b'}, {'tag':'a'} and {'tag':'c'} in that order",
+              "then": "the return values are True, True, True, False"
+            },
+            {
+              "id": "FR-QUERY-001.AC-3",
+              "given": "a TinyDB on MemoryStorage holding {'tag':'a'}, {'tag':'a'}, {'tag':'b'} and a generator yielding 'a' and 'b'",
+              "when": "db.count(Query().tag.one_of(generator)) is called",
+              "then": "the count is 3"
+            }
+          ],
+          "links": [
+            "TERM-001",
+            "Q-001",
+            "Q-002",
+            "RSK-001",
+            "related: Q-001, Q-002"
+          ]
+        },
+        {
+          "id": "FR-QUERY-002",
+          "kind": "FR",
+          "statement": "When a list is passed to Query.one_of, the query shall keep matching every document whose tested field value is in the list.",
+          "source": "STATED",
+          "source_quote": "With a list it works fine.",
+          "priority": "MUST",
+          "status": "READY",
+          "acceptance_criteria": [
+            {
+              "id": "FR-QUERY-002.AC-1",
+              "given": "a TinyDB on MemoryStorage holding {'tag':'a'}, {'tag':'b'}, {'tag':'a'}, {'tag':'c'}",
+              "when": "db.search(Query().tag.one_of(['a','b'])) is called",
+              "then": "the result equals [{'tag':'a'}, {'tag':'b'}, {'tag':'a'}]"
+            },
+            {
+              "id": "FR-QUERY-002.AC-2",
+              "given": "q = Query().key1.one_of(['value 1','value 2'])",
+              "when": "q is called with {'key1':'value 1'} and then with {'key1':'value 3'}",
+              "then": "the results are True and False"
+            },
+            {
+              "id": "FR-QUERY-002.AC-3",
+              "given": "the list ['a','b'] and a query q = Query().tag.one_of(['a','b']) used in two successive db.search calls",
+              "when": "both searches run against documents {'tag':'a'}, {'tag':'c'}",
+              "then": "both results equal [{'tag':'a'}]"
+            }
+          ],
+          "links": [
+            "related: Q-002"
+          ]
+        },
+        {
+          "id": "FR-QUERY-003",
+          "kind": "FR",
+          "statement": "If a single one_of query built from a generator is used in more than one search (Q-001), the system shall return the same matches for each search.",
+          "source": "ASSUMED",
+          "source_quote": "",
+          "priority": "UNSET",
+          "status": "ASSUMPTION-ONLY",
+          "acceptance_criteria": [
+            {
+              "id": "FR-QUERY-003.AC-1",
+              "given": "documents {'tag':'a'}, {'tag':'c'} and q = Query().tag.one_of(t for t in ['a','b'])",
+              "when": "db.search(q) is called twice in a row on the same TinyDB",
+              "then": "both calls return [{'tag':'a'}]"
+            },
+            {
+              "id": "FR-QUERY-003.AC-2",
+              "given": "q = Query().tag.one_of(t for t in ['a','b']) used on two separate TinyDB instances holding {'tag':'a'}",
+              "when": "db1.search(q) and then db2.search(q) are called",
+              "then": "both return [{'tag':'a'}]"
+            }
+          ],
+          "links": [
+            "ASM-002",
+            "Q-001",
+            "RSK-001"
+          ]
+        }
+      ],
+      "terms": [
+        {
+          "id": "TERM-001",
+          "term": "generator",
+          "interpretations": [
+            "A generator expression or generator-function result, as in the issue example `(t for t in ['a','b'])`. This is the reading the issue actually shows.",
+            "Any one-shot iterator (map, filter, file object, iter(...)). The same consumption problem applies, but the issue does not name these.",
+            "Any non-list iterable (set, tuple, range, dict view). These can be iterated more than once, so they are a different case from a generator."
+          ]
+        },
+        {
+          "id": "TERM-002",
+          "term": "works fine / matches only some (priority-word mapping)",
+          "interpretations": [
+            "Declarative statements about behaviour ('With a list it works fine', 'expected: ...') map to MUST per the skill's priority rule. No 'should/could' wording is present, so none map to SHOULD or COULD."
+          ]
+        }
+      ],
+      "open_questions": [
+        {
+          "id": "Q-001",
+          "priority": "P3",
+          "question": "When the same query object built from a generator is used in more than one search, must every search return the same matches (the generator is one-shot, so a second use would otherwise see no values)?",
+          "why_it_matters": "The issue only shows one search. Whether repeated use must also work decides FR-QUERY-003, which is a candidate until answered. It does not block FR-QUERY-001.",
+          "options": [
+            "(a) yes, repeated use gives identical results",
+            "(b) only a single use is required",
+            "(c) repeated use may raise a clear error"
+          ],
+          "proposed_default": "(a), recorded as ASM-002 (PROVISIONAL)",
+          "blocks": [
+            "FR-QUERY-003"
+          ]
+        },
+        {
+          "id": "Q-002",
+          "priority": "P3",
+          "question": "Should other non-list iterables (iterators such as map/filter/iter(), sets, tuples, ranges) also be supported by one_of, or only generators and lists?",
+          "why_it_matters": "The docstring names only 'list or generator'. The scope for other iterables is undetermined.",
+          "options": [
+            "(a) generators and lists only",
+            "(b) any iterable",
+            "(c) generators, lists and other collections already supported today"
+          ],
+          "proposed_default": "(a), recorded as ASM-003 (PROVISIONAL); other iterables stay out of scope",
+          "blocks": [
+            "none yet (dimension 3, 14)"
+          ]
+        },
+        {
+          "id": "Q-003",
+          "priority": "P3",
+          "question": "Is the same generator problem expected to be fixed for Query.any and Query.all, which also accept a sequence argument?",
+          "why_it_matters": "The issue is only about one_of. Whether sibling methods are in scope changes the size of the change.",
+          "options": [
+            "(a) one_of only",
+            "(b) one_of, any and all"
+          ],
+          "proposed_default": "(a); any and all are recorded as out of scope",
+          "blocks": [
+            "none yet (dimension 14)"
+          ]
+        }
+      ],
+      "assumptions": [
+        {
+          "id": "ASM-001",
+          "text": "The requester (the issue author, iDheer) is the decision owner for this change. No maintainer comments are included, so the stakeholder mode is unavailable and every open question stays OPEN.",
+          "risk_if_wrong": "A maintainer may decide scope differently, for example by also covering any and all."
+        },
+        {
+          "id": "ASM-002",
+          "text": "A user who builds a query from a generator expects it to behave consistently if the query object is reused (FR-QUERY-003).",
+          "risk_if_wrong": "If one-time use is acceptable, FR-QUERY-003 should be rejected and withdrawn. If reuse is expected, tests that only check a single search would miss the bug."
+        },
+        {
+          "id": "ASM-003",
+          "text": "Scope is limited to generators and lists, the two types named in the docstring and the issue.",
+          "risk_if_wrong": "Other iterators such as map/filter objects would still fail silently after the fix."
+        }
+      ],
+      "out_of_scope": [
+        "Changing the behaviour of Query.any and Query.all (see Q-003); no change was requested for them.",
+        "Supporting arbitrary other iterables or iterators beyond generators and lists, unless Q-002 is answered otherwise.",
+        "Changing the type hint, docstring or docs/usage.rst wording for one_of, unless the maintainer asks; the issue treats the docstring as the existing contract.",
+        "Design of the fix (for example materialising the generator into a collection when the query is built). This is left to the implementation stage.",
+        "Query result caching design. Recorded only as RSK-001: freeze() does not freeze a generator, so the query hash depends on the generator object itself. This was read in tinydb/utils.py:150-169, and the effect is not tested."
+      ]
+    }
+  },
+  {
+    "type": "tool_result",
+    "is_error": null,
+    "content": "Structured output provided successfully"
+  }
+]

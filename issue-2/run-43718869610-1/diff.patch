@@ -1,0 +1,25 @@
+diff --git a/tinydb/queries.py b/tinydb/queries.py
+index e106c5d..b9892a5 100644
+--- a/tinydb/queries.py
++++ b/tinydb/queries.py
+@@ -17,7 +17,7 @@ False
+ """
+ 
+ import re
+-from collections.abc import Mapping, Callable, Sequence
++from collections.abc import Mapping, Callable, Sequence, Iterator
+ from typing import Any, Union, Optional, Protocol
+ 
+ from .utils import freeze
+@@ -481,6 +481,11 @@ class Query(QueryInstance):
+ 
+         :param items: The list of items to check with
+         """
++        if isinstance(items, Iterator):
++            # One-shot iterators (e.g. generators) would be exhausted after
++            # the first documents; materialise them once.
++            items = tuple(items)  # type: ignore[assignment]
++
+         return self._generate_test(
+             lambda value: value in items,
+             ('one_of', self._path, freeze(items))

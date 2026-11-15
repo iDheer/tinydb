@@ -1,0 +1,74 @@
+{
+  "label": "judge.0.0",
+  "role": "judge",
+  "ok": true,
+  "cost_usd": 0.00098,
+  "usage": {
+    "input_tokens": 2,
+    "cache_creation_input_tokens": 2231,
+    "cache_read_input_tokens": 2942,
+    "output_tokens": 1338,
+    "output_tokens_details": {
+      "thinking_tokens": 870
+    },
+    "server_tool_use": {
+      "web_search_requests": 0,
+      "web_fetch_requests": 0
+    },
+    "service_tier": "standard",
+    "cache_creation": {
+      "ephemeral_1h_input_tokens": 0,
+      "ephemeral_5m_input_tokens": 2231
+    },
+    "inference_geo": "global",
+    "iterations": [],
+    "speed": "standard",
+    "fallback_credit": null
+  },
+  "num_turns": 2,
+  "duration_s": 6.7,
+  "error": "",
+  "denials": 0,
+  "model": "claude-haiku-5-5",
+  "tool_calls": [
+    {
+      "tool": "StructuredOutput",
+      "args": {
+        "criteria": [
+          {
+            "id": "FR-QUERY-001.AC-1",
+            "testable": true,
+            "reason": "Concrete starting state (MemoryStorage with four named documents and a named allowed sequence), a single db.search call, and an exact expected list of documents."
+          },
+          {
+            "id": "FR-QUERY-001.AC-2",
+            "testable": true,
+            "reason": "Query q is built from a named generator and called directly on four named documents in a stated order, with exact expected boolean return values."
+          },
+          {
+            "id": "FR-QUERY-001.AC-3",
+            "testable": true,
+            "reason": "Concrete documents and a named generator yielding 'a' and 'b' with a single db.count call and an exact expected count of 3."
+          },
+          {
+            "id": "FR-QUERY-002.AC-1",
+            "testable": true,
+            "reason": "Concrete documents, a single db.search call with a literal list, and an exact expected result list."
+          },
+          {
+            "id": "FR-QUERY-002.AC-2",
+            "testable": true,
+            "reason": "Query with a literal list is called on two named documents, and the expected results True and False are exact and observable."
+          },
+          {
+            "id": "FR-QUERY-002.AC-3",
+            "testable": true,
+            "reason": "Concrete list, documents and expected result are given; the two successive searches are a repeated use of one query, and the expected outcome for both is exact."
+          }
+        ]
+      },
+      "allowed": true,
+      "reason": "final structured answer"
+    }
+  ]
+}

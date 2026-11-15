@@ -1,0 +1,347 @@
+{
+  "spec": {
+    "title": "Query.one_of() must match all documents when given a generator",
+    "summary": "Precise bug report. Currently `Query.one_of(items)` (tinydb/queries.py:476) runs `value in items` once per document. `freeze()` leaves a generator unchanged, so the generator is a one-shot iterator that is consumed by the first documents tested. Later documents then see an exhausted generator and fail to match; in the issue's example the second `'a'` is missing. The issue states the expected result for the example (all three matching documents) and says the list case already works. Two requirements are READY: generator support, and no change for lists. One candidate requirement (reusing one query object for several searches) is recorded as not agreed. Only P3 questions remain, and stakeholder mode is unavailable (no maintainer comments), so the verdict is READY-WITH-OPEN-ITEMS. No instructions were found inside the untrusted issue text. No tools were needed for evidence: nothing public and named is involved.",
+    "verdict": "READY-WITH-OPEN-ITEMS",
+    "requirements": [
+      {
+        "id": "FR-QUERY-001",
+        "kind": "FR",
+        "statement": "When a generator is passed to Query.one_of, the query shall match every document whose tested field value is contained in the values the generator yields, with no document missed because earlier documents were tested.",
+        "source": "STATED",
+        "source_quote": "expected: [{'tag': 'a'}, {'tag': 'b'}, {'tag': 'a'}]",
+        "priority": "MUST",
+        "status": "READY",
+        "acceptance_criteria": [
+          {
+            "id": "FR-QUERY-001.AC-1",
+            "given": "a TinyDB on MemoryStorage holding the documents {'tag':'a'}, {'tag':'b'}, {'tag':'a'}, {'tag':'c'} and allowed = (t for t in ['a','b'])",
+            "when": "db.search(Query().tag.one_of(allowed)) is called once",
+            "then": "the result equals [{'tag':'a'}, {'tag':'b'}, {'tag':'a'}]"
+          },
+          {
+            "id": "FR-QUERY-001.AC-2",
+            "given": "q = Query().tag.one_of(t for t in ['a','b'])",
+            "when": "q is called directly with {'tag':'a'}, {'tag':'b'}, {'tag':'a'} and {'tag':'c'} in that order",
+            "then": "the return values are True, True, True, False"
+          },
+          {
+            "id": "FR-QUERY-001.AC-3",
+            "given": "a TinyDB on MemoryStorage holding {'tag':'a'}, {'tag':'a'}, {'tag':'b'} and a generator yielding 'a' and 'b'",
+            "when": "db.count(Query().tag.one_of(generator)) is called",
+            "then": "the count is 3"
+          }
+        ],
+        "links": [
+          "TERM-001",
+          "Q-001",
+          "Q-002",
+          "RSK-001",
+          "related: Q-001, Q-002"
+        ]
+      },
+      {
+        "id": "FR-QUERY-002",
+        "kind": "FR",
+        "statement": "When a list is passed to Query.one_of, the query shall keep matching every document whose tested field value is in the list.",
+        "source": "STATED",
+        "source_quote": "With a list it works fine.",
+        "priority": "MUST",
+        "status": "READY",
+        "acceptance_criteria": [
+          {
+            "id": "FR-QUERY-002.AC-1",
+            "given": "a TinyDB on MemoryStorage holding {'tag':'a'}, {'tag':'b'}, {'tag':'a'}, {'tag':'c'}",
+            "when": "db.search(Query().tag.one_of(['a','b'])) is called",
+            "then": "the result equals [{'tag':'a'}, {'tag':'b'}, {'tag':'a'}]"
+          },
+          {
+            "id": "FR-QUERY-002.AC-2",
+            "given": "q = Query().key1.one_of(['value 1','value 2'])",
+            "when": "q is called with {'key1':'value 1'} and then with {'key1':'value 3'}",
+            "then": "the results are True and False"
+          },
+          {
+            "id": "FR-QUERY-002.AC-3",
+            "given": "the list ['a','b'] and a query q = Query().tag.one_of(['a','b']) used in two successive db.search calls",
+            "when": "both searches run against documents {'tag':'a'}, {'tag':'c'}",
+            "then": "both results equal [{'tag':'a'}]"
+          }
+        ],
+        "links": [
+          "related: Q-002"
+        ]
+      },
+      {
+        "id": "FR-QUERY-003",
+        "kind": "FR",
+        "statement": "If a single one_of query built from a generator is used in more than one search (Q-001), the system shall return the same matches for each search.",
+        "source": "ASSUMED",
+        "source_quote": "",
+        "priority": "UNSET",
+        "status": "ASSUMPTION-ONLY",
+        "acceptance_criteria": [
+          {
+            "id": "FR-QUERY-003.AC-1",
+            "given": "documents {'tag':'a'}, {'tag':'c'} and q = Query().tag.one_of(t for t in ['a','b'])",
+            "when": "db.search(q) is called twice in a row on the same TinyDB",
+            "then": "both calls return [{'tag':'a'}]"
+          },
+          {
+            "id": "FR-QUERY-003.AC-2",
+            "given": "q = Query().tag.one_of(t for t in ['a','b']) used on two separate TinyDB instances holding {'tag':'a'}",
+            "when": "db1.search(q) and then db2.search(q) are called",
+            "then": "both return [{'tag':'a'}]"
+          }
+        ],
+        "links": [
+          "ASM-002",
+          "Q-001",
+          "RSK-001"
+        ]
+      }
+    ],
+    "terms": [
+      {
+        "id": "TERM-001",
+        "term": "generator",
+        "interpretations": [
+          "A generator expression or generator-function result, as in the issue example `(t for t in ['a','b'])`. This is the reading the issue actually shows.",
+          "Any one-shot iterator (map, filter, file object, iter(...)). The same consumption problem applies, but the issue does not name these.",
+          "Any non-list iterable (set, tuple, range, dict view). These can be iterated more than once, so they are a different case from a generator."
+        ]
+      },
+      {
+        "id": "TERM-002",
+        "term": "works fine / matches only some (priority-word mapping)",
+        "interpretations": [
+          "Declarative statements about behaviour ('With a list it works fine', 'expected: ...') map to MUST per the skill's priority rule. No 'should/could' wording is present, so none map to SHOULD or COULD."
+        ]
+      }
+    ],
+    "open_questions": [
+      {
+        "id": "Q-001",
+        "priority": "P3",
+        "question": "When the same query object built from a generator is used in more than one search, must every search return the same matches (the generator is one-shot, so a second use would otherwise see no values)?",
+        "why_it_matters": "The issue only shows one search. Whether repeated use must also work decides FR-QUERY-003, which is a candidate until answered. It does not block FR-QUERY-001.",
+        "options": [
+          "(a) yes, repeated use gives identical results",
+          "(b) only a single use is required",
+          "(c) repeated use may raise a clear error"
+        ],
+        "proposed_default": "(a), recorded as ASM-002 (PROVISIONAL)",
+        "blocks": [
+          "FR-QUERY-003"
+        ]
+      },
+      {
+        "id": "Q-002",
+        "priority": "P3",
+        "question": "Should other non-list iterables (iterators such as map/filter/iter(), sets, tuples, ranges) also be supported by one_of, or only generators and lists?",
+        "why_it_matters": "The docstring names only 'list or generator'. The scope for other iterables is undetermined.",
+        "options": [
+          "(a) generators and lists only",
+          "(b) any iterable",
+          "(c) generators, lists and other collections already supported today"
+        ],
+        "proposed_default": "(a), recorded as ASM-003 (PROVISIONAL); other iterables stay out of scope",
+        "blocks": [
+          "none yet (dimension 3, 14)"
+        ]
+      },
+      {
+        "id": "Q-003",
+        "priority": "P3",
+        "question": "Is the same generator problem expected to be fixed for Query.any and Query.all, which also accept a sequence argument?",
+        "why_it_matters": "The issue is only about one_of. Whether sibling methods are in scope changes the size of the change.",
+        "options": [
+          "(a) one_of only",
+          "(b) one_of, any and all"
+        ],
+        "proposed_default": "(a); any and all are recorded as out of scope",
+        "blocks": [
+          "none yet (dimension 14)"
+        ]
+      }
+    ],
+    "assumptions": [
+      {
+        "id": "ASM-001",
+        "text": "The requester (the issue author, iDheer) is the decision owner for this change. No maintainer comments are included, so the stakeholder mode is unavailable and every open question stays OPEN.",
+        "risk_if_wrong": "A maintainer may decide scope differently, for example by also covering any and all."
+      },
+      {
+        "id": "ASM-002",
+        "text": "A user who builds a query from a generator expects it to behave consistently if the query object is reused (FR-QUERY-003).",
+        "risk_if_wrong": "If one-time use is acceptable, FR-QUERY-003 should be rejected and withdrawn. If reuse is expected, tests that only check a single search would miss the bug."
+      },
+      {
+        "id": "ASM-003",
+        "text": "Scope is limited to generators and lists, the two types named in the docstring and the issue.",
+        "risk_if_wrong": "Other iterators such as map/filter objects would still fail silently after the fix."
+      }
+    ],
+    "out_of_scope": [
+      "Changing the behaviour of Query.any and Query.all (see Q-003); no change was requested for them.",
+      "Supporting arbitrary other iterables or iterators beyond generators and lists, unless Q-002 is answered otherwise.",
+      "Changing the type hint, docstring or docs/usage.rst wording for one_of, unless the maintainer asks; the issue treats the docstring as the existing contract.",
+      "Design of the fix (for example materialising the generator into a collection when the query is built). This is left to the implementation stage.",
+      "Query result caching design. Recorded only as RSK-001: freeze() does not freeze a generator, so the query hash depends on the generator object itself. This was read in tinydb/utils.py:150-169, and the effect is not tested."
+    ]
+  },
+  "design": {
+    "summary": "Make Query.one_of() materialise a one-shot iterator (generator) into a tuple when the query is built, so the per-document `value in items` test and the query hash both use a reusable collection.",
+    "approach": "In `Query.one_of` (tinydb/queries.py:476), before building the test, add: if `items` is an `collections.abc.Iterator` (generators are one; lists, tuples and sets are not), replace it with `tuple(items)`. Both the lambda `value in items` and `freeze(items)` in the hash then use the materialised tuple. Lists and other collections are untouched (FR-QUERY-002). Because the generator is consumed once at construction, the query can be reused across searches and TinyDB instances (FR-QUERY-003). The hash becomes content-based (`('one_of', path, ('a','b'))`) rather than depending on generator object identity (RSK-001), so C2 is satisfied and two one_of queries with the same values correctly share a hash. This needs a stdlib import (`from collections.abc import Iterator`) at the top of queries.py, and a small update to the type hint/docstring if desired (the spec says the docstring stays unchanged, so leave it).",
+    "alternatives": [
+      {
+        "option": "Make `freeze()` in utils.py convert generators/iterators to tuples",
+        "why_not": "Wider blast radius: freeze is used by every query operation, and the lambda in one_of would still iterate the original, already-consumed generator unless one_of also uses the frozen value. It would also be a larger change than needed."
+      },
+      {
+        "option": "Test with `any(value == x for x in items)` or re-create the iterator per document",
+        "why_not": "A generator cannot be re-iterated, so this does not solve it. It would also leave the second search with an empty generator (FR-QUERY-003)."
+      },
+      {
+        "option": "Materialise every `items` with `tuple(items)` unconditionally",
+        "why_not": "Changes the behaviour of the list and set cases (set membership becomes O(n), the type changes) and conflicts with FR-QUERY-002 'no change for lists'. Restricting to Iterator keeps the change minimal."
+      },
+      {
+        "option": "Also fix Query.any and Query.all",
+        "why_not": "Out of scope per spec (Q-003 default (a)); they accept a list or a query, not a generator per their type hints."
+      },
+      {
+        "option": "Restrict to `types.GeneratorType` instead of `Iterator`",
+        "why_not": "Viable and equally small, but Iterator also fixes map/filter/iter() objects, which would otherwise fail silently in the same way; Q-002 leaves this open and the extra coverage is harmless."
+      }
+    ],
+    "files": [
+      {
+        "path": "tinydb/queries.py",
+        "change": "modify",
+        "purpose": "Materialise iterator/generator arguments of one_of into a tuple at query-build time.",
+        "symbols": [
+          {
+            "name": "Query.one_of",
+            "kind": "method",
+            "change": "modify",
+            "description": "If `items` is a collections.abc.Iterator, set `items = tuple(items)` before creating the test lambda and the hash `('one_of', self._path, freeze(items))`. Lists and other collections pass through unchanged."
+          }
+        ]
+      }
+    ],
+    "ac_mapping": [
+      {
+        "ac_id": "FR-QUERY-001.AC-1",
+        "symbols": [
+          "Query.one_of"
+        ],
+        "test_idea": "TinyDB(storage=MemoryStorage) with a,b,a,c; db.search(Query().tag.one_of(t for t in ['a','b'])) == [a,b,a]."
+      },
+      {
+        "ac_id": "FR-QUERY-001.AC-2",
+        "symbols": [
+          "Query.one_of"
+        ],
+        "test_idea": "Build q from a generator; call q on a,b,a,c docs in order; assert True,True,True,False."
+      },
+      {
+        "ac_id": "FR-QUERY-001.AC-3",
+        "symbols": [
+          "Query.one_of"
+        ],
+        "test_idea": "Docs a,a,b with a generator yielding a,b; db.count(Query().tag.one_of(gen)) == 3."
+      },
+      {
+        "ac_id": "FR-QUERY-002.AC-1",
+        "symbols": [
+          "Query.one_of"
+        ],
+        "test_idea": "Search with list ['a','b'] over a,b,a,c returns [a,b,a]."
+      },
+      {
+        "ac_id": "FR-QUERY-002.AC-2",
+        "symbols": [
+          "Query.one_of"
+        ],
+        "test_idea": "q = Query().key1.one_of(['value 1','value 2']); q({'key1':'value 1'}) is True, q({'key1':'value 3'}) is False."
+      },
+      {
+        "ac_id": "FR-QUERY-002.AC-3",
+        "symbols": [
+          "Query.one_of"
+        ],
+        "test_idea": "Use one list-based query in two db.search calls on a,c docs; both return [a]."
+      },
+      {
+        "ac_id": "FR-QUERY-003.AC-1",
+        "symbols": [
+          "Query.one_of"
+        ],
+        "test_idea": "Generator-based q searched twice on the same db (a,c docs); both results are [a] (the second call is also checked after clearing the cache with an insert)."
+      },
+      {
+        "ac_id": "FR-QUERY-003.AC-2",
+        "symbols": [
+          "Query.one_of"
+        ],
+        "test_idea": "Same generator-based q searched on two separate MemoryStorage TinyDBs holding {'tag':'a'}; both return [a]."
+      }
+    ],
+    "constraints": [
+      {
+        "id": "C2",
+        "how_respected": "one_of still goes through Query._generate_test and keeps the hash ('one_of', path, freeze(items)); after materialisation the hash encodes the actual values instead of a generator object identity, so equal-meaning queries share a hash and different ones do not."
+      },
+      {
+        "id": "C4",
+        "how_respected": "Only a stdlib import (collections.abc) is added to queries.py; no import of table.py or database.py."
+      },
+      {
+        "id": "C5",
+        "how_respected": "Uses only the standard library (collections.abc.Iterator, built-in tuple)."
+      },
+      {
+        "id": "C3",
+        "how_respected": "Not affected: no change to Table or storage writes."
+      }
+    ],
+    "risks": [
+      "The spec says 'generator' (TERM-001) but Iterator-based detection also materialises map/filter/iter()/file objects. This is a harmless superset, but it goes beyond the default for Q-002 (a); worth noting for the reviewer.",
+      "An infinite generator would now hang at query construction rather than at match time. The only previous behaviour was undefined/partial matches, so this is acceptable.",
+      "A generator is consumed at build time, so a caller who later expects to reuse that generator will find it exhausted. This is inherent to generators.",
+      "FR-QUERY-003 is ASSUMPTION-ONLY (Q-001 open); the chosen design satisfies it for free, but the spec would still need maintainer confirmation.",
+      "The type hint `items: list[Any]` and docstring are left as-is per spec; mypy treats generators as not matching the hint, so only callers' type checkers could complain. Out of scope per spec.",
+      "Query.any and Query.all have the same latent issue if given generators; intentionally untouched (Q-003)."
+    ]
+  },
+  "stages": [
+    {
+      "stage": "spec",
+      "passed": true,
+      "reasons": [],
+      "at": "2026-11-15T13:26:16.712139+00:00",
+      "attempt": 1
+    },
+    {
+      "stage": "design",
+      "passed": true,
+      "reasons": [],
+      "at": "2026-11-15T13:26:39.947366+00:00"
+    },
+    {
+      "stage": "implement",
+      "passed": true,
+      "reasons": [],
+      "at": "2026-11-15T13:27:00.893023+00:00",
+      "attempt": 1
+    },
+    {
+      "stage": "test",
+      "passed": true,
+      "reasons": [],
+      "at": "2026-11-15T13:27:01.889750+00:00",
+      "attempt": 1
+    }
+  ]
+}
