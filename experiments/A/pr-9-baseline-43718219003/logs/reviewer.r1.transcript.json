@@ -1,0 +1,174 @@
+[
+  {
+    "type": "tool_use",
+    "name": "Bash",
+    "input": {
+      "command": "cat ARCHITECTURE.md | head -80; grep -n \"def \\|^from\\|^import\" tinydb/operations.py; git diff 7c7d3a275c --stat; python -m pytest -q 2>&1 | tail -3",
+      "description": "Read architecture doc, operations module, run tests"
+    }
+  },
+  {
+    "type": "tool_result",
+    "is_error": true,
+    "content": "PreToolUse:Bash hook error: one plain command per call: no pipes, redirects, chaining or substitution"
+  },
+  {
+    "type": "tool_use",
+    "name": "Read",
+    "input": {
+      "file_path": "/home/runner/work/tinydb/tinydb/work/ARCHITECTURE.md"
+    }
+  },
+  {
+    "type": "tool_result",
+    "is_error": null,
+    "content": "1\t# TinyDB — Architecture\n2\t\n3\tTinyDB is a small, pure-Python, document-oriented database. A database is a single\n4\tPython `dict` of tables (`{table_name: {doc_id: document}}`) that is persisted as a\n5\twhole by a pluggable *storage*. All paths below are relative to the repository root.\n6\t\n7\t## 1. Overview of the main components\n8\t\n9\t| # | Component | File | What it does |\n10\t|---|-----------|------|--------------|\n11\t| 1 | **TinyDB** (database) | `tinydb/database.py` | Entry point. Instantiates the storage from `storage=` (default `JSONStorage`) with all remaining constructor arguments, creates and caches `Table` objects by name, and forwards unknown attributes (`insert`, `search`, …) to the default table `_default`. |\n12\t| 2 | **Table / Document** | `tinydb/table.py` | All document operations (insert, search, get, update, upsert, remove, truncate, count). Reads and writes the *whole* database through the storage, owns a per-table LRU **query cache**, and assigns integer document IDs. `Document` is a `dict` with a `doc_id`. |\n13\t| 3 | **Query / QueryInstance** | `tinydb/queries.py` | Query builder (`Query().field == 1`, `where('f')`). A query is a callable `doc -> bool` plus a **stable hash value** that describes it; queries combine with `&`, `\\|`, `~`. Defines the `QueryLike` protocol that `Table` accepts. |\n14\t| 4 | **Storages** | `tinydb/storages.py` | Abstract `Storage` (`read()` / `write(data)` / optional `close()`), plus `JSONStorage` (file on disk) and `MemoryStorage`. Serialisation lives here and only here. |\n15\t| 5 | **Middlewares** | `tinydb/middlewares.py` | Wrappers that look like a storage *class* to `TinyDB` and wrap a real storage, e.g. `CachingMiddleware`, which keeps the data in memory and writes it through every `WRITE_CACHE_SIZE` writes, on `flush()` or on `close()`. |\n16\t| 6 | **Operations** | `tinydb/operations.py` | Factory functions (`delete`, `add`, `set`, `increment`, …) that return callables mutating a document; passed to `Table.update`. |\n17\t| 7 | **Utils** | `tinydb/utils.py` | `LRUCache` (used as the query cache), `freeze`/`FrozenDict` (make query arguments hashable) and `with_typehint` (typing helper so `TinyDB` looks like a `Table` to IDEs). |\n18\t\n19\t`tinydb/mypy_plugin.py` is a type-checking helper only and is not used at runtime.\n20\t\n21\t**Who calls whom**\n22\t\n23\t- `TinyDB.__init__` calls `storage(*args, **kwargs)`. The result can be a storage or a\n24\t  middleware chain, and it is passed to every `Table` it creates.\n25\t- `Table` calls only `storage.read()` and `storage.write(data)`. It never knows which\n26\t  concrete storage or middleware it is talking to.\n27\t- `Table.search`/`get`/`update`/`remove` call query objects as plain callables and use\n28\t  them as keys in the `LRUCache` query cache. Every write goes through\n29\t  `Table._update_table`, which writes the whole data back and then clears the cache.\n30\t- `Query` uses `utils.freeze` to build hash values. It does not depend on tables or storages.\n31\t- A `Middleware` holds the wrapped storage in `self.storage` and forwards unknown\n32\t  attributes to it.\n33\t\n34\t```mermaid\n35\tflowchart LR\n36\t  User([user code]) --> TinyDB\n37\t  TinyDB -- \"storage(*args, **kwargs)\" --> MW[\"Middleware (optional)<br/>CachingMiddleware\"]\n38\t  MW -- wraps --> ST[\"Storage (ABC)<br/>JSONStorage / MemoryStorage\"]\n39\t  TinyDB -- \"creates / forwards to\" --> Table\n40\t  Table -- \"read() / write(whole dict)\" --> MW\n41\t  Table -- \"read() / write()\" -.-> ST\n42\t  Table -- \"calls cond(doc), uses hash as cache key\" --> Query[\"Query / QueryInstance\"]\n43\t  Table -- \"query cache\" --> LRU[\"utils.LRUCache\"]\n44\t  Table -- \"update(fields=...)\" --> Ops[\"operations\"]\n45\t  Query -- \"freeze() args for hashing\" --> Utils[\"utils.freeze / FrozenDict\"]\n46\t```\n47\t\n48\tImport layering (lower layers never import upper ones):\n49\t`utils` ← `queries`, `storages` ← `table` ← `database`; `middlewares` imports only `Storage`.\n50\t\n51\t## 2. Architecture decision records\n52\t\n53\t### ADR-1: Storages read and wr"
+  },
+  {
+    "type": "tool_use",
+    "name": "Read",
+    "input": {
+      "file_path": "/home/runner/work/tinydb/tinydb/work/tinydb/operations.py"
+    }
+  },
+  {
+    "type": "tool_result",
+    "is_error": null,
+    "content": "1\t\"\"\"\n2\tA collection of update operations for TinyDB.\n3\t\n4\tThey are used for updates like this:\n5\t\n6\t>>> db.update(delete('foo'), where('foo') == 2)\n7\t\n8\tThis would delete the ``foo`` field from all documents where ``foo`` equals 2.\n9\t\"\"\"\n10\t\n11\t\n12\tfrom collections.abc import Callable, MutableMapping\n13\tfrom typing import Any, Union\n14\t\n15\t\n16\tdef delete(field: str) -> Callable[[MutableMapping], None]:\n17\t    \"\"\"\n18\t    Delete a given field from the document.\n19\t    \"\"\"\n20\t    def transform(doc: MutableMapping):\n21\t        del doc[field]\n22\t\n23\t    return transform\n24\t\n25\t\n26\tdef add(field: str, n: Union[int, float, str]) -> Callable[[MutableMapping], None]:\n27\t    \"\"\"\n28\t    Add ``n`` to a given field in the document.\n29\t\n30\t    Also works for strings (concatenation), matching the documented behavior.\n31\t    \"\"\"\n32\t    def transform(doc: MutableMapping):\n33\t        doc[field] += n\n34\t\n35\t    return transform\n36\t\n37\t\n38\tdef subtract(field: str, n: Union[int, float]) -> Callable[[MutableMapping], None]:\n39\t    \"\"\"\n40\t    Subtract ``n`` to a given field in the document.\n41\t    \"\"\"\n42\t    def transform(doc: MutableMapping):\n43\t        doc[field] -= n\n44\t\n45\t    return transform\n46\t\n47\t\n48\tdef set(field: str, val: Any) -> Callable[[MutableMapping], None]:\n49\t    \"\"\"\n50\t    Set a given field to ``val``.\n51\t    \"\"\"\n52\t    def transform(doc: MutableMapping):\n53\t        doc[field] = val\n54\t\n55\t    return transform\n56\t\n57\t\n58\tdef increment(field: str) -> Callable[[MutableMapping], None]:\n59\t    \"\"\"\n60\t    Increment a given field in the document by 1.\n61\t    \"\"\"\n62\t    def transform(doc: MutableMapping):\n63\t        doc[field] += 1\n64\t\n65\t    return transform\n66\t\n67\t\n68\tdef decrement(field: str) -> Callable[[MutableMapping], None]:\n69\t    \"\"\"\n70\t    Decrement a given field in the document by 1.\n71\t    \"\"\"\n72\t    def transform(doc: MutableMapping):\n73\t        doc[field] -= 1\n74\t\n75\t    return transform\n76\t"
+  },
+  {
+    "type": "tool_use",
+    "name": "Bash",
+    "input": {
+      "command": "python -m pytest -q",
+      "description": "Run full test suite"
+    }
+  },
+  {
+    "type": "tool_result",
+    "is_error": false,
+    "content": "============================= test session starts ==============================\nplatform linux -- Python 3.12.16, pytest-9.2.0, pluggy-1.7.0\nrootdir: /home/runner/work/tinydb/tinydb/work\nconfigfile: pytest.ini\nplugins: cov-7.1.0, anyio-4.16.0\ncollected 229 items\n\ntests/test_append_to.py .                                                [  0%]\ntests/test_middlewares.py .........                                      [  4%]\ntests/test_operations.py ..............                                  [ 10%]\ntests/test_queries.py ..................................                 [ 25%]\ntests/test_storages.py ..............                                    [ 31%]\ntests/test_tables.py ...............................                     [ 44%]\ntests/test_tinydb.py ................................................... [ 67%]\n...............................................................          [ 94%]\ntests/test_utils.py ............                                         [100%]\n\n================================ tests coverage ================================\n_______________ coverage: platform linux, python 3.12.16-final-0 _______________\n\nName                    Stmts   Miss Branch BrPart  Cover\n---------------------------------------------------------\ntinydb/__init__.py          5      0      0      0   100%\ntinydb/database.py         53      0     10      0   100%\ntinydb/middlewares.py      44      3     14      3    90%\ntinydb/mypy_plugin.py      26     26      2      0     0%\ntinydb/operations.py       26      0      0      0   100%\ntinydb/queries.py         130      2     30      4    96%\ntinydb/storages.py         57      0      8      0   100%\ntinydb/table.py           245      1    104      8    97%\ntinydb/utils.py            78      1     18      1    98%\ntinydb/version.py           1      0      0      0   100%\n---------------------------------------------------------\nTOTAL                     665     33    186     16    94%\n============================= 229 passed in 1.00s =============================="
+  },
+  {
+    "type": "text",
+    "text": "Now a probe."
+  },
+  {
+    "type": "tool_use",
+    "name": "Write",
+    "input": {
+      "file_path": "/home/runner/work/_temp/autose/review-scratch/probe_append.py",
+      "content": "from tinydb import TinyDB, Query\nfrom tinydb.storages import MemoryStorage\nimport tinydb.operations as ops\n\nprint(\"operations.append exists:\", hasattr(ops, \"append\"))\ntry:\n    from tinydb.operations import append  # noqa: F401\n    print(\"import ok\")\nexcept ImportError as e:\n    print(\"ImportError:\", e)\n\ndb = TinyDB(storage=MemoryStorage)\ndb.insert_multiple([{'id': 7, 'tags': ['a']}, {'id': 8}])\nprint(\"append_to ids:\", db.append_to('tags', 'urgent', Query().id == 7))\nprint(db.all())\ndb.append_to('tags', 'x', Query().id == 8)\nprint(db.all())\n# Shared list aliasing check: append same list value to two missing docs\ndb2 = TinyDB(storage=MemoryStorage)\ndb2.insert_multiple([{'id': 1}, {'id': 2}])\ndb2.append_to('tags', 'y', Query().id.exists())\nprint(db2.all())\n"
+    }
+  },
+  {
+    "type": "tool_result",
+    "is_error": null,
+    "content": "File created successfully at: /home/runner/work/_temp/autose/review-scratch/probe_append.py (file state is current in your context — no need to Read it back)"
+  },
+  {
+    "type": "tool_use",
+    "name": "Bash",
+    "input": {
+      "command": "python /home/runner/work/_temp/autose/review-scratch/probe_append.py",
+      "description": "Run reviewer probe script"
+    }
+  },
+  {
+    "type": "tool_result",
+    "is_error": false,
+    "content": "operations.append exists: False\nImportError: cannot import name 'append' from 'tinydb.operations' (/home/runner/work/tinydb/tinydb/work/tinydb/operations.py)\nappend_to ids: [1]\n[{'id': 7, 'tags': ['a', 'urgent']}, {'id': 8}]\n[{'id': 7, 'tags': ['a', 'urgent']}, {'id': 8, 'tags': ['x']}]\n[{'id': 1, 'tags': ['y']}, {'id': 2, 'tags': ['y']}]"
+  },
+  {
+    "type": "tool_use",
+    "name": "StructuredOutput",
+    "input": {
+      "issue_requirements": [
+        "Add a built-in update operation `append(field, value)` to `tinydb.operations`, alongside `increment`, `add`, `set`, etc., returning a transform callable that is passed to `db.update(...)` (e.g. `db.update(append('tags', 'urgent'), Query().id == 7)`).",
+        "For matching documents that already have a list in the field, the value is appended to that list.",
+        "For matching documents that lack the field, the field is created as a list containing only that value.",
+        "Implied: tests cover the new operation, including the missing-field case.",
+        "Implied: existing behaviour and the existing test suite must not break.",
+        "Implied: ARCHITECTURE.md constraints C1–C5 hold (writes only via _update_table, import layering, stdlib only)."
+      ],
+      "requirement_checks": [
+        {
+          "requirement": "`append` operation exists in `tinydb.operations` and works with `db.update`",
+          "met": "no",
+          "evidence": "The diff leaves tinydb/operations.py unchanged (it still only has delete/add/subtract/set/increment/decrement, lines 16-75). Probe: `from tinydb.operations import append` -> \"ImportError: cannot import name 'append' from 'tinydb.operations'\"; `hasattr(ops, 'append')` -> False. The PR adds a new `Table.append_to(field, value, cond)` method instead (tinydb/table.py:531-541)."
+        },
+        {
+          "requirement": "Appends to an existing list field",
+          "met": "partly",
+          "evidence": "Only through the new `db.append_to` method. Probe: `db.append_to('tags','urgent', Query().id == 7)` -> [1], and the doc became {'id': 7, 'tags': ['a', 'urgent']}. The API the issue asked for is still missing."
+        },
+        {
+          "requirement": "Missing field is created as a one-element list",
+          "met": "partly",
+          "evidence": "Only through `append_to`. Probe: doc {'id': 8} became {'id': 8, 'tags': ['x']}. Each document gets its own list, not a shared one (the probe on db2 showed separate ['y'] lists). Not available via operations."
+        },
+        {
+          "requirement": "Tests cover the new operation",
+          "met": "partly",
+          "evidence": "tests/test_append_to.py tests `db.append_to` for the existing-list and missing-field cases. There is no test for `tinydb.operations.append` (which does not exist), and nothing was added to tests/test_operations.py."
+        },
+        {
+          "requirement": "Existing behaviour not broken",
+          "met": "yes",
+          "evidence": "`python -m pytest -q` -> 229 passed in 1.00s."
+        },
+        {
+          "requirement": "ARCHITECTURE constraints C1–C5 hold",
+          "met": "yes",
+          "evidence": "append_to delegates to self.update, which writes through _update_table (C3). It adds no imports (C4) and no dependencies (C5). Storages and queries are untouched (C1, C2)."
+        }
+      ],
+      "findings": [
+        {
+          "severity": "major",
+          "category": "approach",
+          "file": "tinydb/table.py",
+          "line": 531,
+          "description": "The issue asks for an `append(field, value)` factory in `tinydb.operations`, next to increment/add/set, to be passed to `db.update(...)`. The PR adds a new `Table.append_to(field, value, cond)` method on the Table API instead and leaves `tinydb/operations.py` unchanged. The user's example `from tinydb.operations import append` fails with ImportError. This also goes against ARCHITECTURE.md component 6, which says update transforms live in operations.py, and it widens the Table public API without need.",
+          "evidence": "Probe output: \"operations.append exists: False\" and \"ImportError: cannot import name 'append' from 'tinydb.operations'\". The diff touches only tinydb/table.py and adds tests/test_append_to.py.",
+          "suggested_fix": "Add `def append(field: str, value: Any) -> Callable[[MutableMapping], None]` to tinydb/operations.py with a transform `doc.setdefault(field, []).append(value)`. Do not add `Table.append_to` (or justify it separately). Add tests to tests/test_operations.py covering the existing-list and missing-field cases via `db.update(append(...), cond)`."
+        },
+        {
+          "severity": "minor",
+          "category": "tests",
+          "file": "tests/test_append_to.py",
+          "line": 1,
+          "description": "The tests cover only the new Table method, not the operation the issue asked for. They also sit in a new file instead of tests/test_operations.py, where the other operations are tested. If the existing field is not a list (for example a string), the code raises AttributeError, and no test covers or documents that.",
+          "evidence": "tests/test_append_to.py calls only `db.append_to`.",
+          "suggested_fix": "Move the tests into tests/test_operations.py and target `operations.append`. You could also add a test that pins down the behaviour when the field is not a list."
+        }
+      ],
+      "checks_run": [
+        {
+          "command": "python -m pytest -q",
+          "result": "229 passed in 1.00s"
+        },
+        {
+          "command": "python /home/runner/work/_temp/autose/review-scratch/probe_append.py",
+          "result": "operations.append missing (ImportError). db.append_to appends to an existing list and creates ['x'] for a missing field. Each document gets its own list."
+        }
+      ],
+      "risks_considered": [
+        "API mismatch: the requested `tinydb.operations.append` does not exist",
+        "A mutable default list shared between documents (not the case: setdefault creates a new list per call)",
+        "Writes bypassing _update_table / cache invalidation (C3): not the case, because it delegates to update()",
+        "Import layering and stdlib-only constraints (C4/C5): unaffected",
+        "Non-list existing field: raises AttributeError, untested",
+        "TinyDB attribute forwarding exposing the new Table method on the db object, which grows the public API surface"
+      ],
+      "verdict": "request_changes",
+      "route": "design",
+      "summary": "The PR puts the feature in the wrong place. It adds a `Table.append_to` method, but the issue asks for an `append(field, value)` operation in `tinydb.operations`, so `from tinydb.operations import append` fails with ImportError. The new method does append correctly and creates a one-element list for missing fields, and the full suite passes (229 tests). Because the requested API is missing, this goes back to design."
+    }
+  },
+  {
+    "type": "tool_result",
+    "is_error": null,
+    "content": "Structured output provided successfully"
+  }
+]
