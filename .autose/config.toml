@@ -1,0 +1,61 @@
+# autose configuration. Read by every job; a decision-experiment variant may override
+# individual keys (see variants in orchestrator.py / review.py).
+
+[models]
+planner = "claude-sonnet-5-5"
+implementer = "claude-sonnet-5-5"
+tester = "claude-sonnet-5-5"
+reviewer = "claude-opus-5-5"
+judge = "claude-haiku-5-5"
+
+[effort]
+planner = "high"
+implementer = "medium"
+tester = "medium"
+reviewer = "high"
+judge = "low"
+
+# Per agent call: turns, USD (SDK max_budget_usd) and wall clock seconds.
+[limits.planner]
+max_turns = 30
+max_usd = 1.5
+timeout_s = 900
+
+[limits.implementer]
+max_turns = 40
+max_usd = 2.0
+timeout_s = 900
+
+[limits.tester]
+max_turns = 30
+max_usd = 1.5
+timeout_s = 900
+
+[limits.reviewer]
+max_turns = 40
+max_usd = 3.0
+timeout_s = 1200
+
+[limits.judge]
+max_turns = 3
+max_usd = 0.05
+timeout_s = 120
+
+[budgets]
+spec_retries_on_check = 1        # spec re-drafted once when only the form of ACs fails
+design_retries_on_check = 1      # design re-drafted once when its check fails
+impl_attempts_per_design = 3     # stage 3 attempts before escalating to design
+design_revisions_from_tests = 1  # "tests keep failing" -> back to design, once
+tester_retries_on_check = 1      # missing AC coverage / tests that pass on base
+test_disputes = 1                # implementer may dispute a test once
+ci_retries = 1                   # CI failure -> stage 3 once
+max_send_backs = 2               # review -> earlier stage at most twice (max 3 reviews)
+run_usd_cap = 8.0                # summed total_cost_usd per workflow run
+
+[repo]
+default_branch = "main"
+work_branch_prefix = "autose/issue-"
+artifacts_branch = "autose-artifacts"
+ci_workflow = "ci.yml"
+ci_timeout_s = 1500
+forbidden_upstream_owners = ["msiemens"]

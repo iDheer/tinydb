@@ -1,0 +1,197 @@
+# autose: issue in, tested and reviewed pull request out.
+# Architecture and the reasons behind every choice: see the submission repository
+# (architecture/views, architecture/decisions). Untrusted text (issue/comment bodies) is
+# never interpolated into `run:` scripts; Python reads $GITHUB_EVENT_PATH instead.
+name: autose
+
+on:
+  issues:
+    types: [labeled]
+  issue_comment:
+    types: [created]
+  workflow_dispatch:
+    inputs:
+      issue: {description: "Issue number", required: true}
+      mode: {description: "start | rework | review", required: false, default: "start"}
+      from_stage: {description: "rework only: design | implement", required: false, default: ""}
+      round: {description: "review round", required: false, default: "1"}
+      pr: {description: "review mode: PR number", required: false, default: ""}
+      variant: {description: "experiment variant (baseline | selftest | informed)", required: false, default: "baseline"}
+      stop_after: {description: "stop after this stage (experiments): '' | test", required: false, default: ""}
+      experiment: {description: "experiment tag (review mode on seeded PRs)", required: false, default: ""}
+
+permissions: {}
+
+concurrency:
+  group: autose-${{ inputs.experiment || 'run' }}-${{ inputs.variant || 'baseline' }}-${{ github.event.issue.number || inputs.issue }}
+  cancel-in-progress: false
+
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions: {contents: read, issues: write, pull-requests: read}
+    outputs:
+      run: ${{ steps.gate.outputs.run }}
+      issue: ${{ steps.gate.outputs.issue }}
+      mode: ${{ steps.gate.outputs.mode }}
+      from_stage: ${{ steps.gate.outputs.from_stage }}
+      round: ${{ steps.gate.outputs.round }}
+      pr: ${{ steps.gate.outputs.pr }}
+      variant: ${{ steps.gate.outputs.variant }}
+      stop_after: ${{ steps.gate.outputs.stop_after }}
+      experiment: ${{ steps.gate.outputs.experiment }}
+    steps:
+      - name: Cheap pre-filter (no checkout for unrelated comments)
+        id: pre
+        env:
+          EVENT: ${{ github.event_name }}
+          LABEL: ${{ github.event.label.name }}
+          STARTS: ${{ startsWith(github.event.comment.body, '/autose') }}
+        run: |
+          if [ "$EVENT" = "issue_comment" ] && [ "$STARTS" != "true" ]; then echo "go=false" >> "$GITHUB_OUTPUT";
+          elif [ "$EVENT" = "issues" ] && [ "$LABEL" != "autose" ]; then echo "go=false" >> "$GITHUB_OUTPUT";
+          else echo "go=true" >> "$GITHUB_OUTPUT"; fi
+      - uses: actions/checkout@v4
+        if: steps.pre.outputs.go == 'true'
+        with: {ref: main, sparse-checkout: .autose, persist-credentials: false}
+      - id: gate
+        if: steps.pre.outputs.go == 'true'
+        env:
+          AUTOSE_GH_TOKEN: ${{ github.token }}
+        run: python3 .autose/gate.py
+
+  build:
+    needs: gate
+    if: needs.gate.outputs.run == 'true' && (needs.gate.outputs.mode == 'start' || needs.gate.outputs.mode == 'rework')
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    permissions: {contents: write, pull-requests: write, issues: write, actions: write}
+    outputs:
+      status: ${{ steps.orch.outputs.status }}
+      pr: ${{ steps.orch.outputs.pr }}
+      round: ${{ steps.orch.outputs.round }}
+    steps:
+      - uses: actions/checkout@v4
+        with: {ref: main, path: ctl, persist-credentials: false}
+      - uses: actions/checkout@v4
+        with: {ref: main, path: work, fetch-depth: 0, persist-credentials: false}
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.12"}
+      - name: Install agent SDK, test tools and sandbox
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq bubblewrap socat > /dev/null
+          sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0 || true
+          python -m pip install -q -r ctl/.autose/requirements.txt
+          bwrap --ro-bind / / --dev /dev --unshare-net true && echo "bubblewrap sandbox OK"
+          unshare -rn true && echo "network-less namespaces OK"
+      - name: Orchestrator (stages 1-5)
+        id: orch
+        env:
+          AUTOSE_ANTHROPIC_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          AUTOSE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          AUTOSE_GH_TOKEN: ${{ github.token }}
+          AUTOSE_WORK: ${{ github.workspace }}/work
+          AUTOSE_ISSUE: ${{ needs.gate.outputs.issue }}
+          AUTOSE_MODE: ${{ needs.gate.outputs.mode }}
+          AUTOSE_FROM_STAGE: ${{ needs.gate.outputs.from_stage }}
+          AUTOSE_ROUND: ${{ needs.gate.outputs.round }}
+          AUTOSE_VARIANT: ${{ needs.gate.outputs.variant }}
+          AUTOSE_STOP_AFTER: ${{ needs.gate.outputs.stop_after }}
+        run: python ctl/.autose/orchestrator.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: autose-build-${{ needs.gate.outputs.issue }}-r${{ needs.gate.outputs.round }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/autose/out
+          if-no-files-found: ignore
+
+  review:
+    needs: [gate, build]
+    if: >-
+      always() && needs.gate.outputs.run == 'true' &&
+      ((needs.build.result == 'success' && needs.build.outputs.pr != '') || needs.gate.outputs.mode == 'review')
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    # Read and run code; no write permission of any kind (ADR-008).
+    permissions: {contents: read, issues: read, pull-requests: read}
+    env:
+      PR: ${{ needs.build.outputs.pr || needs.gate.outputs.pr }}
+    outputs:
+      verdict: ${{ steps.rev.outputs.verdict }}
+    steps:
+      - uses: actions/checkout@v4
+        with: {ref: main, path: ctl, persist-credentials: false}
+      - uses: actions/checkout@v4
+        with: {ref: "refs/pull/${{ env.PR }}/head", path: work, fetch-depth: 0, persist-credentials: false}
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.12"}
+      - name: Install agent SDK, test tools and sandbox
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq bubblewrap socat > /dev/null
+          sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0 || true
+          python -m pip install -q -r ctl/.autose/requirements.txt
+          bwrap --ro-bind / / --dev /dev --unshare-net true && echo "bubblewrap sandbox OK"
+      - name: Collect reviewer inputs (issue text; extra context only for the 'informed' variant)
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ISSUE: ${{ needs.gate.outputs.issue }}
+          VARIANT: ${{ needs.gate.outputs.variant }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/review_in"
+          gh issue view "$ISSUE" --repo "$GITHUB_REPOSITORY" --json number,title,body,author,comments > "$RUNNER_TEMP/review_in/issue.json"
+          if [ "$VARIANT" = "informed" ]; then
+            python ctl/.autose/informed_context.py "$PR" "$ISSUE" > "$RUNNER_TEMP/review_in/informed.json"
+          fi
+      - name: Independent reviewer (stage 6)
+        id: rev
+        env:
+          AUTOSE_ANTHROPIC_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          AUTOSE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          AUTOSE_WORK: ${{ github.workspace }}/work
+          AUTOSE_REVIEW_IN: ${{ runner.temp }}/review_in
+          AUTOSE_PR: ${{ env.PR }}
+          AUTOSE_ISSUE: ${{ needs.gate.outputs.issue }}
+          AUTOSE_ROUND: ${{ needs.build.outputs.round || needs.gate.outputs.round || '1' }}
+          AUTOSE_VARIANT: ${{ needs.gate.outputs.variant }}
+        run: python ctl/.autose/review.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: autose-review-${{ env.PR }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/autose/review-out
+
+  publish:
+    needs: [gate, build, review]
+    if: always() && needs.review.result == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions: {contents: write, pull-requests: write, issues: write, actions: write}
+    steps:
+      - uses: actions/checkout@v4
+        with: {ref: main, sparse-checkout: .autose, persist-credentials: false}
+      - uses: actions/download-artifact@v4
+        with:
+          name: autose-review-${{ needs.build.outputs.pr || needs.gate.outputs.pr }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/review-out
+      - name: Post review, store it, route next round or hand over
+        env:
+          AUTOSE_GH_TOKEN: ${{ github.token }}
+          AUTOSE_REVIEW_OUT: ${{ runner.temp }}/review-out
+          AUTOSE_ISSUE: ${{ needs.gate.outputs.issue }}
+          AUTOSE_EXPERIMENT: ${{ needs.gate.outputs.experiment }}
+        run: python3 .autose/publish.py
+
+  notify-failure:
+    needs: [gate, build, review, publish]
+    if: failure() && needs.gate.outputs.run == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions: {issues: write}
+    steps:
+      - env:
+          GH_TOKEN: ${{ github.token }}
+          ISSUE: ${{ needs.gate.outputs.issue }}
+        run: |
+          gh issue comment "$ISSUE" --repo "$GITHUB_REPOSITORY" --body "<!-- autose -->
+          autose run ended with a failed job: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID (see the job logs and uploaded artifacts)."
