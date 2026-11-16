@@ -528,6 +528,18 @@ class Table:
 
             return updated_ids
 
+    def append_to(self, field: str, value, cond: QueryLike) -> list[int]:
+        """
+        Append ``value`` to the list in ``field`` of every document matching
+        ``cond``. Missing fields are created as a one-element list.
+
+        :returns: a list containing the updated documents' IDs
+        """
+        def transform(doc: MutableMapping):
+            doc.setdefault(field, []).append(value)
+
+        return self.update(transform, cond)
+
     def update_multiple(
         self,
         updates: Iterable[
